@@ -1,0 +1,10 @@
+{
+  "files.exclude": {
+    "node_modules/**": true,
+    "package-lock.json": true
+  },
+  "editor.detectIndentation": false,
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.tabSize": 2
+}

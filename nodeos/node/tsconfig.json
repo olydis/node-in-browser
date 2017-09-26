@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "alwaysStrict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "amd",
+    "noEmitOnError": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "outFile": "../../www/bin/node/app.js",
+    "sourceMap": false,
+    "strict": true,
+    "target": "es2017",
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "es2017",
+      "webworker"
+    ],
+    "newLine": "LF"
+  },
+  "exclude": [
+    "dist",
+    "../types"
+  ]
+}
