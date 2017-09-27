@@ -34,6 +34,7 @@ class VirtualMachine {
   public node(script: string): void {
     const vm = this;
     const worker = new Worker("/bin/node/app.js");
+    (self as any)._keepAlive = worker;
     worker.onmessage = function (ev: MessageEvent) { const { f, x } = ev.data; vm.syscall(this, f, x); };
     // worker.onerror = function (ev: ErrorEvent) { console.error(ev.error); };
     const env: Environment = { fs: this.fs, cwd: "/cwd" };

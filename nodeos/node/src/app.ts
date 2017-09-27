@@ -11,6 +11,7 @@
   let env: Environment;
   const errAny = (e: any): never => { throw e; };
   const err = (message: string): never => { throw new Error(message); };
+  const errNotImpl = (): never => err("not implemented");
 
   // rescue required browser/worker-specific globals
   const URL = selfAny.URL;
@@ -18,6 +19,11 @@
   const postMessage = selfAny.postMessage;
   const XMLHttpRequest = selfAny.XMLHttpRequest;
   const exit = selfAny.close;
+  const setInterval = selfAny.setInterval;
+  const clearInterval = selfAny.clearInterval;
+  const setTimeout = selfAny.setTimeout;
+  const clearTimeout = selfAny.clearTimeout;
+  const console = selfAny.console;
 
   const readFileSync = (absolutePath: string): string | null => {
     // - try vfs
@@ -313,6 +319,7 @@ ${content.startsWith("#!") ? "//" + content : content}
       'net',
       'os',
       'path',
+      'perf_hooks',
       'process',
       'punycode',
       'querystring',
@@ -351,6 +358,7 @@ ${content.startsWith("#!") ? "//" + content : content}
       'internal/freelist',
       'internal/fs',
       'internal/http',
+      'internal/inspector_async_hook',
       'internal/linkedlist',
       'internal/loader/Loader',
       'internal/loader/ModuleJob',
@@ -360,13 +368,14 @@ ${content.startsWith("#!") ? "//" + content : content}
       'internal/loader/search',
       'internal/net',
       'internal/module',
+      'internal/os',
+      'internal/process',
       'internal/process/next_tick',
       'internal/process/promises',
       'internal/process/stdio',
       'internal/process/warning',
-      'internal/process',
-      'internal/querystring',
       'internal/process/write-coverage',
+      'internal/querystring',
       'internal/readline',
       'internal/repl',
       'internal/safe_globals',
@@ -379,20 +388,7 @@ ${content.startsWith("#!") ? "//" + content : content}
       'internal/streams/lazy_transform',
       'internal/streams/BufferList',
       'internal/streams/legacy',
-      'internal/streams/destroy',
-      // 'v8/tools/splaytree',
-      // 'v8/tools/codemap',
-      // 'v8/tools/consarray',
-      // 'v8/tools/csvparser',
-      // 'v8/tools/profile',
-      // 'v8/tools/profile_view',
-      // 'v8/tools/logreader',
-      // 'v8/tools/tickprocessor',
-      // 'v8/tools/SourceMap',
-      // 'v8/tools/tickprocessor-driver',
-      // 'node-inspect/lib/_inspect',
-      // 'node-inspect/lib/internal/inspect_client',
-      // 'node-inspect/lib/internal/inspect_repl'
+      'internal/streams/destroy'
     ];
     const natives: { [name: string]: string } = {};
     for (const nativesKey of nativesKeys)
@@ -410,15 +406,108 @@ ${content.startsWith("#!") ? "//" + content : content}
       }
     }
 
+    class ChannelWrap {
+      public constructor() {
+
+      }
+    }
+
+    class TTY {
+      private _fd: number;
+      private _unknown: boolean;
+
+      public constructor(fd: number, unknown: boolean) {
+        this._fd = fd;
+        this._unknown = unknown;
+      }
+
+      public getWindowSize(size: [number, number]): any /*error*/ {
+        size[0] = 80; // cols
+        size[1] = 30; // rows
+      }
+
+      public readStart(): any /*error*/ {
+
+      }
+
+      public setBlocking(blocking: boolean): void {
+
+      }
+
+      public setRawMode(rawMode: boolean): void {
+
+      }
+
+      public writeAsciiString(req: any, data: any) { errNotImpl(); }
+      public writeBuffer(req: any, data: any) { errNotImpl(); }
+      public writeLatin1String(req: any, data: any) { errNotImpl(); }
+      public writeUcs2String(req: any, data: any) { errNotImpl(); }
+      public writeUtf8String(req: any, data: string) {
+        switch (this._fd) {
+          case 1: // stdout
+            console.log(data);
+            break;
+          case 2: // stderr
+            console.error(data);
+            break;
+        }
+      }
+    }
+
+    const startTime = Date.now();
+    class Timer {
+      public static get kOnTimeout(): number {
+        return 0;
+      }
+
+      public static now(): number {
+        return Date.now() - startTime;
+      }
+
+      public constructor() {
+        this.__handle = null;
+      }
+
+      [k: number]: () => void;
+
+      private __handle: number | null;
+
+      public start(delay: number): void {
+        if (this.__handle === null) this.__handle = setInterval(() => this[Timer.kOnTimeout](), delay);
+      }
+
+      public stop(): void {
+        if (this.__handle !== null) clearInterval(this.__handle);
+      }
+    }
+
+    class ShutdownWrap {
+
+    }
+    class WriteWrap {
+      public constructor() {
+      }
+
+
+    }
+
+    class PerformanceEntry {
+
+    }
+
+    const statValues = new Float64Array([
+      1458881089, 33206, 1, 0, 0, 0, -1, 8162774324649504, 58232, -1, 1484478676521.9932, 1506412651257.9966, 1506412651257.9966, 1484478676521.9932,
+      0, 0, 0, 0, 0, 0, 0, 1.020383559167285e-309, 7.86961418868e-312, 7.86961069963e-312, 0, 0, 0, 0]);
 
     let global: NodeJS.Global = self as any;
     global.global = global;
 
-    const startTime = Date.now();
     const process = {
+      _setupDomainUse: (domain: any, stack: any) => [],
       _setupProcessObject: (pushValueToArrayFunction: Function) => { },
       _setupPromises: () => { },
-      _setupNextTick: () => { },
+      _setupNextTick: () => [],
+      argv: ["node", msg.data.script],
       binding: (name: string): any => {
         switch (name) {
           case "async_wrap":
@@ -436,10 +525,24 @@ ${content.startsWith("#!") ? "//" + content : content}
             }; // TODO
           case "buffer":
             return {
-              setupBufferJS: () => { }
+              setupBufferJS: (proto: any) => {
+                proto.utf8Slice = function (start: number, end: number) {
+                  const slice = this.slice(start, end);
+                  let result = "";
+                  for (let i = 0; i < slice.byteLength; ++i)
+                    result += String.fromCharCode(slice[i]);
+                  return result;
+                };
+              }
             }; // TODO
           case "cares_wrap":
-            return {};// TODO
+            return {
+              GetAddrInfoReqWrap: () => { },
+              GetNameInfoReqWrap: () => { },
+              QueryReqWrap: () => { },
+              ChannelWrap: ChannelWrap,
+              isIP: () => { }
+            };// TODO
           case "config":
             return {}; // TODO
           case "constants":
@@ -450,12 +553,92 @@ ${content.startsWith("#!") ? "//" + content : content}
             }; // TODO
           case "fs":
             return {
-              getStatValues: () => new Float64Array([
-                1458881089, 33206, 1, 0, 0, 0, -1, 8162774324649504, 58232, -1, 1484478676521.9932, 1506412651257.9966, 1506412651257.9966, 1484478676521.9932,
-                0, 0, 0, 0, 0, 0, 0, 1.020383559167285e-309, 7.86961418868e-312, 7.86961069963e-312, 0, 0, 0, 0])
+              getStatValues: () => statValues,
+              internalModuleReadFile: (path: string) => {
+                var res = readFileSync(path);
+                return res === null ? undefined : res;
+              },
+              internalModuleStat: (path: string) => {
+                // file
+                if (existsSync(path)) return 0;
+                // dir TODO
+                if (existsSync(path + "/package.json")) return 1;
+                if (existsSync(path + "/index.js")) return 1;
+                return -4058;
+              },
+              fstat: (path: string) => {
+                statValues[0] = statValues[0]; // TODO
+              },
+              lstat: (path: string) => {
+                statValues[0] = statValues[0]; // TODO
+              },
+              open: (path: string, flags: number, mode: number): any /*file descriptor*/ => {
+                if (flags === 0) return { s: readFileSync(path) };
+                debugger;
+                errNotImpl();
+              },
+              close: (fd: any) => { },
+              read: (fd: any, buffer: any, offset: number, length: number, position: number) => {
+                const s = fd.s;
+                const copy = Math.min(s.length, length);
+                for (let i = 0; i < copy; ++i)
+                  buffer[offset + i] = s.charCodeAt(i);
+                fd.s = s.slice(copy);
+                return copy;
+              }
             };// TODO
           case "fs_event_wrap":
             return {};// TODO
+          case "inspector":
+            return {};// TODO
+          case "os":
+            return {
+              getCPUs: () => errNotImpl(),
+              getFreeMem: () => errNotImpl(),
+              getHomeDirectory: () => errNotImpl(),
+              getHostname: () => errNotImpl(),
+              getInterfaceAddresses: () => errNotImpl(),
+              getLoadAvg: () => errNotImpl(),
+              getOSRelease: () => errNotImpl(),
+              getOSType: () => errNotImpl(),
+              getTotalMem: () => errNotImpl(),
+              getUserInfo: () => errNotImpl(),
+              getUptime: () => errNotImpl(),
+              isBigEndian: false
+            };// TODO
+          case "performance":
+            return {
+              constants: {
+                NODE_PERFORMANCE_ENTRY_TYPE_NODE: 0,
+                NODE_PERFORMANCE_ENTRY_TYPE_MARK: 0,
+                NODE_PERFORMANCE_ENTRY_TYPE_MEASURE: 0,
+                NODE_PERFORMANCE_ENTRY_TYPE_GC: 0,
+                NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION: 0,
+                NODE_PERFORMANCE_MILESTONE_NODE_START: 0,
+                NODE_PERFORMANCE_MILESTONE_V8_START: 0,
+                NODE_PERFORMANCE_MILESTONE_LOOP_START: 0,
+                NODE_PERFORMANCE_MILESTONE_LOOP_EXIT: 0,
+                NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE: 0,
+                NODE_PERFORMANCE_MILESTONE_ENVIRONMENT: 0,
+                NODE_PERFORMANCE_MILESTONE_THIRD_PARTY_MAIN_START: 0,
+                NODE_PERFORMANCE_MILESTONE_THIRD_PARTY_MAIN_END: 0,
+                NODE_PERFORMANCE_MILESTONE_CLUSTER_SETUP_START: 0,
+                NODE_PERFORMANCE_MILESTONE_CLUSTER_SETUP_END: 0,
+                NODE_PERFORMANCE_MILESTONE_MODULE_LOAD_START: 0,
+                NODE_PERFORMANCE_MILESTONE_MODULE_LOAD_END: 0,
+                NODE_PERFORMANCE_MILESTONE_PRELOAD_MODULE_LOAD_START: 0,
+                NODE_PERFORMANCE_MILESTONE_PRELOAD_MODULE_LOAD_END: 0
+              },
+              // mark: _mark,
+              markMilestone: () => { },
+              // measure: _measure,
+              // milestones,
+              observerCounts: {},
+              PerformanceEntry: PerformanceEntry,
+              setupObservers: () => { },
+              // timeOrigin,
+              // timerify,
+            };// TODO
           case "pipe_wrap":
             return {};// TODO
           case "module_wrap":
@@ -463,21 +646,21 @@ ${content.startsWith("#!") ? "//" + content : content}
           case "natives":
             return natives;
           case "stream_wrap":
-            return {};// TODO
+            return {
+              ShutdownWrap: ShutdownWrap,
+              WriteWrap: WriteWrap
+            };// TODO
           case "tcp_wrap":
             return {};// TODO
           case "timer_wrap":
             return {
-              Timer: {
-                // TODO constructor
-                kOnTimeout: 0,
-                now: () => Date.now() - startTime
-              }
+              Timer: Timer
             }; // TODO
           case "tty_wrap":
             return {
               isTTY: () => true,
-              guessHandleType: (fs: number): string => "TTY"
+              guessHandleType: (fs: number): string => "TTY",
+              TTY: TTY
             };// TODO
           case "url":
             return {
@@ -491,7 +674,23 @@ ${content.startsWith("#!") ? "//" + content : content}
               kSchemeStart: 0, kScheme: 1, kNoScheme: 2, kSpecialRelativeOrAuthority: 3, kPathOrAuthority: 4, kRelative: 5, kRelativeSlash: 6, kSpecialAuthoritySlashes: 7, kSpecialAuthorityIgnoreSlashes: 8, kAuthority: 9, kHost: 10, kHostname: 11, kPort: 12, kFile: 13, kFileSlash: 14, kFileHost: 15, kPathStart: 16, kPath: 17, kCannotBeBase: 18, kQuery: 19, kFragment: 20
             };
           case "util":
-            return {}; // TODO
+            return {
+              // getPromiseDetails,
+              // getProxyDetails,
+              // isAnyArrayBuffer,
+              // isDataView,
+              // isExternal,
+              // isMap,
+              // isMapIterator,
+              // isPromise,
+              // isSet,
+              // isSetIterator,
+              // isTypedArray,
+              isRegExp: (x: any) => x instanceof RegExp,
+              isDate: (x: any) => x instanceof Date,
+              // kPending,
+              // kRejected,
+            }; // TODO
           case "uv":
             return {
               errname: function () { return `errname(${arguments})`; },
@@ -529,7 +728,9 @@ ${content.startsWith("#!") ? "//" + content : content}
 
     const bootstrapper = new ContextifyScript(natives["internal/bootstrap_node"], { displayErrors: true, filename: "internal/bootstrap_node", lineOffset: 0 });
     const bootstrap = bootstrapper.runInThisContext();
-    bootstrap(process);
+    try {
+      bootstrap(process);
+    } catch (e) { console.error(e); }
 
     selfAny.process = process;
     while (true) {
@@ -538,9 +739,9 @@ ${content.startsWith("#!") ? "//" + content : content}
     }
 
     // boot();
-    // (global as any).MAKE_REQUIRE(env.cwd)(msg.data.script);
+    // (global as any).MAKE_REQUIRE(env.cwd)( n  );
     // postMessage({ f: "__trace.fs", x: env.fs });
   };
 
-  // selfAny.onerror = function (ev: any) { console.error(ev); };
+  selfAny.onerror = function (ev: any) { console.error(ev); };
 }
