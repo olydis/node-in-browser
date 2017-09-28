@@ -25,29 +25,25 @@ class VirtualMachine {
       // case "__trace.fs":
       //   console.log(JSON.stringify(arg, null, 2));
       //   break;
+      case "WRITE":
+        this.fs[arg.path] = arg.content;
+        break;
     }
   }
 
   /**
    * Dummy entry point for "node" binary. Long term, this should be hooked into the FS somehow and resolved via $PATH etc.
    */
-  public node(script: string): void {
+  public node(args: string[], keepAlive: boolean = false): void {
+    eval("document").getElementById("console").innerHTML = "";
     const vm = this;
     const worker = new Worker("/bin/node/app.js");
-    (self as any)._keepAlive = worker;
+    if (keepAlive) (self as any)._keepAlive = worker;
     worker.onmessage = function (ev: MessageEvent) { const { f, x } = ev.data; vm.syscall(this, f, x); };
     // worker.onerror = function (ev: ErrorEvent) { console.error(ev.error); };
     const env: Environment = { fs: this.fs, cwd: "/cwd" };
-    worker.postMessage({ script, env });
+    worker.postMessage({ args, env });
   }
-}
-
-function testFixture() {
-  new VirtualMachine({}).node("/playground/fixture.js");
-}
-
-function testStack() {
-  new VirtualMachine({}).node("/playground/stack/a.js");
 }
 
 function dragover_handler(ev: DragEvent) {
@@ -61,8 +57,8 @@ async function drop_handler(ev: DragEvent) {
   const fs: VirtualFileSystem = {};
   const todo = new Set<string>();
   const traverse = async (entry: any, path: string) => {
+    const name = path + entry.name;
     if (entry.isFile) {
-      const name = path + entry.name;
       // Get file
       try {
         await new Promise<void>((res, req) => entry.file(
@@ -83,6 +79,7 @@ async function drop_handler(ev: DragEvent) {
         );
       } catch (e) { console.error(`Error loading '${name}'`) }
     } else if (entry.isDirectory) {
+      fs[name] = null;
       // Get folder contents
       const dirReader = entry.createReader();
       const jobs: any[] = [];
@@ -92,7 +89,7 @@ async function drop_handler(ev: DragEvent) {
         res();
       }));
       for (const job of jobs)
-        await traverse(job, path + entry.name + "/");
+        await traverse(job, name + "/");
     }
   };
   var items = ev.dataTransfer.items;
@@ -103,9 +100,13 @@ async function drop_handler(ev: DragEvent) {
     await traverse(item.webkitGetAsEntry(), "/");
   }
 
-  console.log("DONE");
+  console.log("done loading");
   const firstPath = Object.keys(fs)[0];
   if (!firstPath) return;
-  console.log("PROBE PATH: " + firstPath);
-  new VirtualMachine(fs).node("/" + firstPath.split('/')[1]);
+
+  const vm = new VirtualMachine(fs);
+  const start = (args: string[], keepAlive: boolean) => { console.log(args); vm.node(args, keepAlive); };
+  (self as any).node = (...args: string[]) => start(args, false);
+  (self as any).nodeDebug = (...args: string[]) => start(args, true);
+  start(["/" + firstPath.split('/')[1]], false);
 }

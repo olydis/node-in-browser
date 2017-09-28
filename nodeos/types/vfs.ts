@@ -1,4 +1,4 @@
 
 interface VirtualFileSystem {
-  [path: string]: string | null; // TODO: do right
+  [path: string]: string | null | undefined; // TODO: do right
 }

@@ -23,12 +23,17 @@
   const clearInterval = selfAny.clearInterval;
   const setTimeout = selfAny.setTimeout;
   const clearTimeout = selfAny.clearTimeout;
-  const console = selfAny.console;
 
-  const readFileSync = (absolutePath: string): string | null => {
+  const writeBack = (absolutePath: string, content: string | null | undefined) => {
+    postMessage({ f: "WRITE", x: { path: absolutePath, content: content } });
+  }
+  const readFileSync = (absolutePath: string): string | undefined => {
     // - try vfs
     {
-      if (absolutePath in env.fs) return env.fs[absolutePath];
+      if (absolutePath in env.fs)
+        return env.fs[absolutePath] === null || env.fs[absolutePath] === "\0"
+          ? undefined
+          : env.fs[absolutePath] as any;
     }
     // - try server
     if (!env.fs["__NOHTTP"]) {
@@ -41,13 +46,37 @@
         //   drequest.open('GET', absolutePath + '/', false);
         //   drequest.send(null);
         // if (drequest.status !== 200) 
+        writeBack(absolutePath, request.responseText);
         return env.fs[absolutePath] = request.responseText;
       }
     }
     // - fail
-    return env.fs[absolutePath] = null;
+    writeBack(absolutePath, "\0");
+    return env.fs[absolutePath] = undefined;
   }
-  const existsSync = (absolutePath: string): boolean => readFileSync(absolutePath) !== null;
+  const existsFolderSync = (absolutePath: string): boolean => {
+    // - try vfs
+    {
+      if (absolutePath in env.fs && env.fs[absolutePath] == null) return true;
+    }
+    // - try server
+    // if (!env.fs["__NOHTTP"]) {
+    //   const request = new XMLHttpRequest();
+    //   request.open('GET', absolutePath, false);
+    //   request.send(null);
+    //   if (request.status === 200) {
+    //     //   // rule out directory listings
+    //     //   const drequest = new XMLHttpRequest();
+    //     //   drequest.open('GET', absolutePath + '/', false);
+    //     //   drequest.send(null);
+    //     // if (drequest.status !== 200) 
+    //     return env.fs[absolutePath] = request.responseText;
+    //   }
+    // }
+    // - fail
+    return false;
+  }
+  const existsSync = (absolutePath: string): boolean => readFileSync(absolutePath) !== undefined;
   const join = (basePath: string, relative: string) => {
     let path = basePath + '/' + relative;
     function normalizeArray(parts: string[]) {
@@ -68,222 +97,6 @@
     }
     path = normalizeArray(path.split('/').filter(p => !!p)).join('/');
     return '/' + path;
-  };
-
-  const boot = () => {
-    let global: NodeJS.Global = self as any;
-
-    const requireCommon: { // same regardless of scope or executing script
-      cache: { [path: string]: { exports: any, internalUrl?: string, error?: any, referenceStackFrame?: string } }
-    } = { cache: {} };
-    const requireInternalJS = (__filename: string, content: string) => {
-      // variables
-      const __dirname = (() => {
-        let result = (/^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/.exec(__filename) || []).slice(1),
-          root = result[0],
-          dir = result[1];
-        if (!root && !dir) return '.';
-        if (dir) dir = dir.substr(0, dir.length - 1);
-        return root + dir;
-      })();
-
-      // decorate
-      const prepared = `
-{
-  let __filename = ${JSON.stringify(__filename)};
-  let __dirname = ${JSON.stringify(__dirname)};
-  let require = global.MAKE_REQUIRE(__dirname);
-  let module = require.cache[__filename];
-  let exports = module.exports;
-  let self = {}; // approximation; looks like we can't remove 'self' from 'global'
-  try {
-    (() => {
-${content.startsWith("#!") ? "//" + content : content}
-    })();
-  } catch (err) {
-    module.error = err; // rescue error across 'importScripts' boundaries (appears to ruin stack trace)
-  }
-  require.cache[__filename].referenceStackFrame = new Error().stack.split('\\n')[1];
-}`;
-      // for stack trace sanitization
-      const preparedLineCountPrefix = 10;
-      const preparedLineCountCallToReference = 4;
-
-      // dispatch
-      const url = URL.createObjectURL(new Blob([prepared], { type: "text/javascript" }));
-      requireCommon.cache[__filename] = { exports: {}, internalUrl: url };
-      importScripts(url);
-      // error?
-      const result = requireCommon.cache[__filename];
-      if ("error" in result) {
-        // sanitize stack trace
-        if (result.error && typeof result.error.stack === "string") {
-          let stack: string = result.error.stack;
-          for (const knownModulePath of Object.keys(requireCommon.cache)) {
-            const cache = requireCommon.cache[knownModulePath];
-            const referenceStackFrame = cache.referenceStackFrame;
-            if (referenceStackFrame) {
-              // strip IIFE frames 
-              let indicator: string;
-              referenceStackFrame.replace(new RegExp(`^([ ]*at .*)(${cache.internalUrl})(\\:)(\\d+)`, "m"), (_, a, b, c, d) => indicator = `${b}${c}${parseInt(d) - preparedLineCountCallToReference}`);
-              stack = stack.split('\n').filter(l => !l.includes(indicator)).join('\n');
-              // translate paths and line numbers
-              stack = stack.replace(new RegExp(`^([ ]*at .*)${cache.internalUrl}(\\:)(\\d+)`, "gm"), (_, a, b, c) => `${a}${knownModulePath}${b}${parseInt(c) - preparedLineCountPrefix}`);
-            }
-          }
-          result.error.stack = stack;
-        }
-        // clear cache entry
-        delete requireCommon.cache[__filename];
-        // replay
-        throw result.error;
-      }
-    };
-    const requireInternalJSON = (__filename: string, content: string) => {
-      requireCommon.cache[__filename] = { exports: JSON.parse(content) };
-    };
-    const requireInternal = (absolutePath: string) => {
-      if (!(absolutePath in requireCommon.cache)) {
-        // load script
-        const content = readFileSync(absolutePath);
-        // fail?
-        if (typeof content !== "string") throw new Error(`Cannot find module '${absolutePath}'`);
-
-        postMessage({ f: "__trace.require", x: absolutePath });
-
-        if (absolutePath.endsWith(".js")) requireInternalJS(absolutePath, content);
-        else if (absolutePath.endsWith(".json")) requireInternalJSON(absolutePath, content);
-        else requireInternalJS(absolutePath, content);
-      }
-      return requireCommon.cache[absolutePath].exports;
-    };
-
-    // core modules
-    const coreModuleNames = new Set<string>([
-      "buffer", "constants", "events", "http", "path", "stream", "util",
-      "fs"
-    ]);
-    for (const coreModuleName of coreModuleNames)
-      env.fs[coreModuleName] = `module.exports = require("/core_modules/${coreModuleName}")`;
-    // built-in
-    { // fs
-      type PathLike = string | Buffer | URL;
-      requireCommon.cache["fs"] = {
-        exports: {
-          readFileSync: (path: PathLike | number, options?: { encoding?: string | null; flag?: string; } | string | null): string | Buffer => {
-            postMessage({ f: "__trace.fs", x: path });
-            const file = readFileSync(path.toString());
-            if (file === null) throw new Error(`File '${path}' not found`); // TODO: compliance
-            return file;
-          }
-        }
-      };
-    }
-
-    // const requireCoreModule = (name: string) =>
-    const requireResolveFactory = (basePath: string) => (path: string): string => {
-      // core modules
-      if (coreModuleNames.has(path)) return path;
-
-      // absolute?
-      if (path.startsWith('/')) {
-        if (existsSync(path)) return path;
-        if (existsSync(path + ".js")) return path + ".js";
-        if (existsSync(path + ".json")) return path + ".json";
-        if (existsSync(join(path, "package.json"))) {
-          try {
-            const main = requireInternal(join(path, "package.json")).main || "index.js";
-            if (main) return requireResolveFactory(basePath)(join(path, main));
-          } catch (e) { }
-        }
-        return path; // give up
-      }
-
-      // relative?
-      if (path.startsWith('.')) return requireResolveFactory(basePath)(join(basePath, path));
-
-      // node_modules
-      const attempt = requireResolveFactory(basePath)("./node_modules/" + path);
-      if (existsSync(attempt)) return attempt; // hit!
-      const basePathUp = join(basePath, "..");
-      if (basePathUp !== basePath) return requireResolveFactory(basePathUp)(path); // traverse
-      return path; // give up
-    };
-    const requireFactory = (basePath: string) => {
-      const resolve = requireResolveFactory(basePath);
-      return Object.assign((path: string): any => requireInternal(resolve(path)), { resolve: resolve });
-    }
-    const makeRequire = (basePath: string = "/"): NodeRequire => Object.assign(requireFactory(basePath), requireCommon) as any;
-
-    const wantedGlobalProps = [
-      'Object', 'Function', 'Array', 'Number',
-      'parseFloat', 'parseInt',
-      'Boolean', 'String',
-      'Symbol', 'Date', 'Promise', 'RegExp',
-      'Error', 'EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError',
-      'JSON',
-      'Math',
-      'Intl',
-      'ArrayBuffer', 'Uint8Array', 'Int8Array', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'Uint8ClampedArray', 'DataView',
-      'Map', 'Set', 'WeakMap', 'WeakSet',
-      'Proxy', 'Reflect',
-      'Infinity', 'NaN', 'undefined', // the unconfiguratbles
-      'decodeURI', 'decodeURIComponent', 'encodeURI', 'encodeURIComponent', 'escape', 'unescape',
-      'eval',
-      'isFinite', 'isNaN',
-      'WebAssembly',
-      'console',
-      // 'DTRACE_NET_SERVER_CONNECTION', 'DTRACE_NET_STREAM_END',
-      // 'DTRACE_HTTP_SERVER_REQUEST', 'DTRACE_HTTP_SERVER_RESPONSE',
-      // 'DTRACE_HTTP_CLIENT_REQUEST', 'DTRACE_HTTP_CLIENT_RESPONSE',
-      // 'COUNTER_NET_SERVER_CONNECTION', 'COUNTER_NET_SERVER_CONNECTION_CLOSE',
-      // 'COUNTER_HTTP_SERVER_REQUEST', 'COUNTER_HTTP_SERVER_RESPONSE',
-      // 'COUNTER_HTTP_CLIENT_REQUEST', 'COUNTER_HTTP_CLIENT_RESPONSE',
-      'global',
-      'process',
-      'GLOBAL',
-      'root',
-      'Buffer',
-      'clearImmediate', 'clearInterval', 'clearTimeout', 'setImmediate', 'setInterval', 'setTimeout'];
-
-    // delete unwanted globals
-    for (const prop of Object.getOwnPropertyNames(global)) {
-      if (!wantedGlobalProps.some(p => p === prop)) {
-        delete (global as any)[prop];
-      }
-    }
-    // polyfill globals (TODO: use defineProperty, also check property descriptors of preexisting stuff)
-    global.root = global.GLOBAL = global.global = global;
-    (global as any).MAKE_REQUIRE = makeRequire;
-    global.process = <NodeJS.Process><any>{
-      exit: (exitCode: number) => {
-        // events
-        close();
-      },
-      cwd: () => env.cwd,
-      argv: ["node", "script.js", "Hello World from Node Box"],
-      env: {},
-      stdin: {
-        isTTY: true
-      },
-      version: "v8.0.0"
-      // TODO
-    };
-    global.Buffer = requireInternal("buffer");
-    global.clearImmediate = immediateId => global.clearTimeout(immediateId);
-    global.setImmediate = (callback, ...args) => global.setTimeout(callback, 0, ...args);
-    global.console = {
-      log: (x: any) => postMessage({ f: "console.log", x: x + "" }),
-      error: (x: any) => postMessage({ f: "console.error", x: x + "" })
-    } as any;
-
-    // check
-    const errMissingGlobal = (field: string): never => err(`Core boot failure. Missing global definition '${field}'.`);
-    for (const prop of wantedGlobalProps) {
-      if (!(prop in global)) {
-        errMissingGlobal(prop);
-      }
-    }
   };
 
   // ENTRY POINT
@@ -445,10 +258,10 @@ ${content.startsWith("#!") ? "//" + content : content}
       public writeUtf8String(req: any, data: string) {
         switch (this._fd) {
           case 1: // stdout
-            console.log(data);
+            postMessage({ f: "console.log", x: data });
             break;
           case 2: // stderr
-            console.error(data);
+            postMessage({ f: "console.error", x: data });
             break;
         }
       }
@@ -502,24 +315,41 @@ ${content.startsWith("#!") ? "//" + content : content}
     let global: NodeJS.Global = self as any;
     global.global = global;
 
+    const runMicrotasks = () => {
+
+    };
+
     const process = {
+      _rawDebug: (x: any) => console.error(x),
       _setupDomainUse: (domain: any, stack: any) => [],
       _setupProcessObject: (pushValueToArrayFunction: Function) => { },
       _setupPromises: () => { },
-      _setupNextTick: () => [],
-      argv: ["node", msg.data.script],
+      _setupNextTick: (_tickCallback: any, _runMicrotasks: any) => {
+        _runMicrotasks.runMicrotasks = runMicrotasks;
+        return [];
+      },
+      argv: ["node", ...msg.data.args],
       binding: (name: string): any => {
         switch (name) {
           case "async_wrap":
             return {
               clearIdStack: () => { },
               asyncIdStackSize: () => { },
-              async_hook_fields: [],
-              async_uid_fields: [],
+              pushAsyncIds: () => { },
+              popAsyncIds: () => { },
+              async_hook_fields: [0],
+              async_uid_fields: [0],
               constants: {
-                kAfter: 0,
+                kInit: 0,
+                kBefore: 1,
+                kAfter: 2,
+                kDestroy: 3,
+                kPromiseResolve: 4,
+                kTotals: 5,
+                kFieldsCount: 6,
+                kAsyncUidCntr: 0,
                 kCurrentAsyncId: 0,
-                kInitTriggerId: 0
+                kInitTriggerId: 0,
               },
               setupHooks: () => { }
             }; // TODO
@@ -559,11 +389,10 @@ ${content.startsWith("#!") ? "//" + content : content}
                 return res === null ? undefined : res;
               },
               internalModuleStat: (path: string) => {
+                // dir
+                if (existsFolderSync(path)) return 1;
                 // file
                 if (existsSync(path)) return 0;
-                // dir TODO
-                if (existsSync(path + "/package.json")) return 1;
-                if (existsSync(path + "/index.js")) return 1;
                 return -4058;
               },
               fstat: (path: string) => {
@@ -731,16 +560,6 @@ ${content.startsWith("#!") ? "//" + content : content}
     try {
       bootstrap(process);
     } catch (e) { console.error(e); }
-
-    selfAny.process = process;
-    while (true) {
-      console.log('asd');
-      await new Promise(res => setTimeout(res, 1000));
-    }
-
-    // boot();
-    // (global as any).MAKE_REQUIRE(env.cwd)( n  );
-    // postMessage({ f: "__trace.fs", x: env.fs });
   };
 
   selfAny.onerror = function (ev: any) { console.error(ev); };
