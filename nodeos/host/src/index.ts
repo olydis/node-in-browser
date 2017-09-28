@@ -56,7 +56,7 @@ async function drop_handler(ev: DragEvent) {
 
   const fs: VirtualFileSystem = {};
   const todo = new Set<string>();
-  const traverse = async (entry: any, path: string) => {
+  const traverse = async (entry: any, path: string): Promise<void> => {
     const name = path + entry.name;
     if (entry.isFile) {
       // Get file
@@ -82,14 +82,13 @@ async function drop_handler(ev: DragEvent) {
       fs[name] = null;
       // Get folder contents
       const dirReader = entry.createReader();
-      const jobs: any[] = [];
+      const jobs: Promise<void>[] = [];
       await new Promise<void>(res => dirReader.readEntries((entries: any) => {
         for (var i = 0; i < entries.length; i++)
-          jobs.push(entries[i]);
+          jobs.push(traverse(entries[i], name + "/"));
         res();
       }));
-      for (const job of jobs)
-        await traverse(job, name + "/");
+      await Promise.all(jobs);
     }
   };
   var items = ev.dataTransfer.items;

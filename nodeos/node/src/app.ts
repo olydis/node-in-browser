@@ -308,6 +308,10 @@
 
     }
 
+    class HTTPParser {
+
+    }
+
     const statValues = new Float64Array([
       1458881089, 33206, 1, 0, 0, 0, -1, 8162774324649504, 58232, -1, 1484478676521.9932, 1506412651257.9966, 1506412651257.9966, 1484478676521.9932,
       0, 0, 0, 0, 0, 0, 0, 1.020383559167285e-309, 7.86961418868e-312, 7.86961069963e-312, 0, 0, 0, 0]);
@@ -355,6 +359,9 @@
             }; // TODO
           case "buffer":
             return {
+              byteLengthUtf8: (s: string) => {
+                return s.length; // TODO
+              },
               setupBufferJS: (proto: any) => {
                 proto.utf8Slice = function (start: number, end: number) {
                   const slice = this.slice(start, end);
@@ -362,6 +369,11 @@
                   for (let i = 0; i < slice.byteLength; ++i)
                     result += String.fromCharCode(slice[i]);
                   return result;
+                };
+                proto.utf8Write = function (string: string, offset: number, length: number) {
+                  for (var i = 0; i < length && i < this.byteLength - offset; ++i)
+                    this[i + offset] = string.charCodeAt(i);
+                  return i;
                 };
               }
             }; // TODO
@@ -418,6 +430,11 @@
             };// TODO
           case "fs_event_wrap":
             return {};// TODO
+          case "http_parser":
+            return {
+              methods: [],
+              HTTPParser: HTTPParser
+            };// TODO
           case "inspector":
             return {};// TODO
           case "os":
@@ -470,10 +487,16 @@
             };// TODO
           case "pipe_wrap":
             return {};// TODO
+          case "process_wrap":
+            return {};// TODO
           case "module_wrap":
             return {};// TODO
           case "natives":
             return natives;
+          case "spawn_sync":
+            return {
+              spawn: () => errNotImpl()
+            };
           case "stream_wrap":
             return {
               ShutdownWrap: ShutdownWrap,
@@ -491,6 +514,8 @@
               guessHandleType: (fs: number): string => "TTY",
               TTY: TTY
             };// TODO
+          case "udp_wrap":
+            return {};// TODO
           case "url":
             return {
               parse: () => { },
