@@ -4,11 +4,11 @@
   <script src="bin/index.js"></script>
 </head>
 
-<body>
+<body ondrop="drop_handler(event)" ondragover="dragover_handler(event)">
   <!-- <button onclick="testFixture()">test fixture</button>
   <button onclick="testStack()">test stack</button> -->
   <div id="status"></div>
-  <textarea id="console" style="width: 100%; height: 1000px;" ondrop="drop_handler(event)" ondragover="dragover_handler(event)"></textarea>
+  <pre id="console"></pre>
 </body>
 
 </html>

@@ -13,14 +13,14 @@ class VirtualMachine {
   private syscall(origin: Worker, func: string, arg: any): void {
     switch (func) {
       case "console.log":
-        eval("document").getElementById("console").innerHTML += arg + "\n";
+        eval("document").getElementById("console").textContent += arg;
         break;
       case "console.error":
-        eval("document").getElementById("console").innerHTML += arg + "\n";
+        eval("document").getElementById("console").textContent += arg;
         break;
       case "__trace.fs":
       case "__trace.require":
-        eval("document").getElementById("console").innerHTML += `[${func}] ${arg}\n`;
+        eval("document").getElementById("console").textContent += `[${func}] ${arg}\n`;
         break;
       // case "__trace.fs":
       //   console.log(JSON.stringify(arg, null, 2));
@@ -35,7 +35,7 @@ class VirtualMachine {
    * Dummy entry point for "node" binary. Long term, this should be hooked into the FS somehow and resolved via $PATH etc.
    */
   public node(args: string[], keepAlive: boolean = false): void {
-    eval("document").getElementById("console").innerHTML = "";
+    eval("document").getElementById("console").textContent = "";
     const vm = this;
     const worker = new Worker("/bin/node/app.js");
     if (keepAlive) (self as any)._keepAlive = worker;
@@ -98,6 +98,7 @@ async function drop_handler(ev: DragEvent) {
       continue;
     await traverse(item.webkitGetAsEntry(), "/");
   }
+  (document.getElementById("status") as any).textContent = "";
 
   console.log("done loading");
   const firstPath = Object.keys(fs)[0];
