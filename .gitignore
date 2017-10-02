@@ -1,3 +1,4 @@
 node_modules/*
 www/bin/*
 www/node/*
+test/browserRunner/node_modules/*

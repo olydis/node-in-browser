@@ -1,0 +1,7 @@
+{
+  "description": "loads given test case folder into browser and executes it as if the folder was passed to Node.js",
+  "main": "index.js",
+  "dependencies": {
+    "electron": "^1.7.8"
+  }
+}

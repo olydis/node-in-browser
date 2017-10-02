@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && cd www/node && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git",
+    "postinstall": "git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && pushd \"www/node\" && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git && popd",
     "start": "http-server www -p 8000 -i false -d false -c-1\"",
     "build": "start cmd /c \"cd nodeos/host && tsc -w\" && start cmd /c \"cd nodeos/node && tsc -w\""
   },
@@ -12,8 +12,8 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^8.0.28",
-    "typescript": "^2.5.2",
-    "http-server": "^0.10.0"
+    "http-server": "^0.10.0",
+    "typescript": "^2.5.2"
   },
   "dependencies": {
     "shx": "^0.2.2"

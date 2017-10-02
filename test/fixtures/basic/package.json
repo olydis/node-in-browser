@@ -1,0 +1,5 @@
+{
+  "description": "Probing basic Node.js functionalities",
+  "main": "main.js",
+  "marker": "===END==="
+}

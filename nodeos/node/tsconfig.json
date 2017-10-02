@@ -10,12 +10,12 @@
     "outFile": "../../www/bin/node/app.js",
     "sourceMap": false,
     "strict": true,
-    "target": "es2017",
+    "target": "es6",
     "types": [
       "node"
     ],
     "lib": [
-      "es2017",
+      "es6",
       "webworker"
     ],
     "newLine": "LF"

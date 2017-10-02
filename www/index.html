@@ -1,14 +1,20 @@
 <html>
 
 <head>
-  <script src="bin/index.js"></script>
+  <script src="./bin/index.js" type="text/javascript"></script>
+  <style>
+    #stderr {
+      color: darkred;
+    }
+  </style>
 </head>
 
 <body ondrop="drop_handler(event)" ondragover="dragover_handler(event)">
   <!-- <button onclick="testFixture()">test fixture</button>
   <button onclick="testStack()">test stack</button> -->
   <div id="status"></div>
-  <pre id="console"></pre>
+  <pre id="stdout"></pre>
+  <pre id="stderr"></pre>
 </body>
 
 </html>

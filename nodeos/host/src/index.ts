@@ -12,16 +12,19 @@ class VirtualMachine {
 
   private syscall(origin: Worker, func: string, arg: any): void {
     switch (func) {
-      case "console.log":
-        eval("document").getElementById("console").textContent += arg;
+      case "stdout":
+        eval("document").getElementById("stdout").textContent += arg;
         break;
-      case "console.error":
-        eval("document").getElementById("console").textContent += arg;
+      case "stderr":
+        eval("document").getElementById("stderr").textContent += arg;
         break;
-      case "__trace.fs":
-      case "__trace.require":
-        eval("document").getElementById("console").textContent += `[${func}] ${arg}\n`;
+      case "error":
+        console.error(arg);
         break;
+      // case "__trace.fs":
+      // case "__trace.require":
+      //   eval("document").getElementById("console").textContent += `[${func}] ${arg}\n`;
+      //   break;
       // case "__trace.fs":
       //   console.log(JSON.stringify(arg, null, 2));
       //   break;
@@ -35,12 +38,13 @@ class VirtualMachine {
    * Dummy entry point for "node" binary. Long term, this should be hooked into the FS somehow and resolved via $PATH etc.
    */
   public node(args: string[], keepAlive: boolean = false): void {
-    eval("document").getElementById("console").textContent = "";
+    eval("document").getElementById("stdout").textContent = "";
+    eval("document").getElementById("stderr").textContent = "";
     const vm = this;
     const worker = new Worker("/bin/node/app.js");
     if (keepAlive) (self as any)._keepAlive = worker;
     worker.onmessage = function (ev: MessageEvent) { const { f, x } = ev.data; vm.syscall(this, f, x); };
-    // worker.onerror = function (ev: ErrorEvent) { console.error(ev.error); };
+    // worker.onerror = function (ev: ErrorEvent) { console.error(JSON.stringify(ev, null, 2)); };
     const env: Environment = { fs: this.fs, cwd: "/cwd" };
     worker.postMessage({ args, env });
   }

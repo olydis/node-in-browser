@@ -10,9 +10,9 @@
     "outFile": "../../www/bin/index.js",
     "sourceMap": false,
     "strict": true,
-    "target": "es2017",
+    "target": "es6",
     "lib": [
-      "es2017",
+      "es6",
       "dom"
     ],
     "newLine": "LF"

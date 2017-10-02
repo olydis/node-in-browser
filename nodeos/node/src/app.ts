@@ -100,7 +100,7 @@
   };
 
   // ENTRY POINT
-  selfAny.onmessage = async function (msg: MessageEvent) {
+  selfAny.onmessage = function (msg: MessageEvent) {
     env = msg.data.env;
 
     // BOOT
@@ -258,10 +258,10 @@
       public writeUtf8String(req: any, data: string) {
         switch (this._fd) {
           case 1: // stdout
-            postMessage({ f: "console.log", x: data });
+            postMessage({ f: "stdout", x: data });
             break;
           case 2: // stderr
-            postMessage({ f: "console.error", x: data });
+            postMessage({ f: "stderr", x: data });
             break;
         }
       }
@@ -324,7 +324,7 @@
     };
 
     const process = {
-      _rawDebug: (x: any) => console.error(x),
+      _rawDebug: (x: any) => postMessage({ f: "error", x: { f: "_rawDebug", x: x } }),
       _setupDomainUse: (domain: any, stack: any) => [],
       _setupProcessObject: (pushValueToArrayFunction: Function) => { },
       _setupPromises: () => { },
@@ -587,5 +587,5 @@
     } catch (e) { console.error(e); }
   };
 
-  selfAny.onerror = function (ev: any) { console.error(ev); };
+  selfAny.onerror = function (ev: any) { postMessage({ f: "error", x: ev }); };
 }
