@@ -1,6 +1,6 @@
 const { exec } = require("child_process");
 
-module.exports = async (fixtureName, browser) => {
+module.exports.run = async (fixtureName, browser) => {
   // package
   const package = require(`./fixtures/${fixtureName}/package.json`);
 
@@ -10,6 +10,15 @@ module.exports = async (fixtureName, browser) => {
   return result;
 };
 
+module.exports.compare = async (fixtureName) => {
+  const expected = await module.exports.run(fixtureName, false);
+  const actual = await module.exports.run(fixtureName, true);
+  return { expected, actual };
+};
+
 // entry point
 if (require.main === module)
-  (async () => console.log(JSON.stringify(await module.exports(process.argv[2], process.argv[3] === "true"), null, 2)))();
+  if (process.argv[3])
+    (async () => console.log(JSON.stringify(await module.exports.run(process.argv[2], process.argv[3] === "true"), null, 2)))();
+  else
+    (async () => console.log(JSON.stringify(await module.exports.compare(process.argv[2]), null, 2)))();
