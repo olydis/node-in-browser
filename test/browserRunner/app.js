@@ -14,7 +14,7 @@ const packageJson = require(`../${testCase}/package.json`);
 
 // browser init
 const win = new BrowserWindow({ show: false });
-win.webContents.toggleDevTools();
+// win.webContents.toggleDevTools();
 // win.maximize();
 // win.setMenu(null);
 

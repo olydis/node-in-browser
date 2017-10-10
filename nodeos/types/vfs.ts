@@ -1,4 +1,6 @@
 
+type ByteBuffer = Uint8Array;
+
 interface VirtualFileSystem {
-  [path: string]: string | null | undefined; // TODO: do right
+  [path: string]: ByteBuffer | null | undefined; // TODO: do right
 }

@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && pushd \"www/node\" && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git && popd",
+    "postinstall": "pushd \"test/browserRunner\" && npm install && popd && git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && pushd \"www/node\" && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git && popd",
     "start": "http-server www -p 8000 -i false -d false -c-1\"",
+    "test": "mocha test --timeout 60000",
     "build": "start cmd /c \"cd nodeos/host && tsc -w\" && start cmd /c \"cd nodeos/node && tsc -w\""
   },
   "author": "Johannes Bader",
@@ -13,6 +14,7 @@
   "devDependencies": {
     "@types/node": "^8.0.28",
     "http-server": "^0.10.0",
+    "mocha": "^4.0.1",
     "typescript": "^2.5.2"
   },
   "dependencies": {

@@ -70,14 +70,14 @@ async function drop_handler(ev: DragEvent) {
             todo.add(name);
             const reader = new FileReader();
             reader.onloadend = () => {
-              fs[name] = reader.result;
+              fs[name] = new Uint8Array(reader.result);
               todo.delete(name);
               // console.log(name);
               (document.getElementById("status") as any).textContent = name;
               res();
             };
             reader.onerror = () => console.error(name);
-            reader.readAsText(f);
+            reader.readAsArrayBuffer(f);
           },
           req)
         );

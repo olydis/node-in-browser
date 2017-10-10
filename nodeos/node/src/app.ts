@@ -3,9 +3,8 @@
 {
   // stack trace manipulation
   type StackFrame = { func?: string, file: string, line: number, column: number };
-  type StackTrace = {}
+  type StackTrace = {};
   const getStackTrace = () => new Error().stack;
-
 
   const selfAny: any = self;
   let env: Environment;
@@ -23,21 +22,25 @@
   const clearInterval = selfAny.clearInterval;
   const setTimeout = selfAny.setTimeout;
   const clearTimeout = selfAny.clearTimeout;
+  const TextDecoder = selfAny.TextDecoder;
+  const crypto = selfAny.crypto;
+  const arr2str = (arr: ByteBuffer): string => new TextDecoder().decode(arr);
 
-  const writeBack = (absolutePath: string, content: string | null | undefined) => {
+  const writeBack = (absolutePath: string, content: ByteBuffer | null | undefined) => {
     postMessage({ f: "WRITE", x: { path: absolutePath, content: content } });
   }
-  const readFileSync = (absolutePath: string): string | undefined => {
+  const readFileSync = (absolutePath: string): ByteBuffer | undefined => {
     // - try vfs
     {
       if (absolutePath in env.fs)
-        return env.fs[absolutePath] === null || env.fs[absolutePath] === "\0"
+        return env.fs[absolutePath] === null || env.fs[absolutePath] === undefined
           ? undefined
           : env.fs[absolutePath] as any;
     }
     // - try server
-    if (!env.fs["__NOHTTP"]) {
+    if (!("__NOHTTP" in env.fs)) {
       const request = new XMLHttpRequest();
+      request.responseType = "arraybuffer";
       request.open('GET', absolutePath, false);
       request.send(null);
       if (request.status === 200) {
@@ -46,12 +49,11 @@
         //   drequest.open('GET', absolutePath + '/', false);
         //   drequest.send(null);
         // if (drequest.status !== 200) 
-        writeBack(absolutePath, request.responseText);
-        return env.fs[absolutePath] = request.responseText;
+        writeBack(absolutePath, request.response);
+        return env.fs[absolutePath] = request.response;
       }
     }
     // - fail
-    writeBack(absolutePath, "\0");
     return env.fs[absolutePath] = undefined;
   }
   const existsFolderSync = (absolutePath: string): boolean => {
@@ -166,6 +168,14 @@
       'internal/cluster/shared_handle',
       'internal/cluster/utils',
       'internal/cluster/worker',
+      'internal/crypto/certificate',
+      'internal/crypto/cipher',
+      'internal/crypto/diffiehellman',
+      'internal/crypto/hash',
+      'internal/crypto/pbkdf2',
+      'internal/crypto/random',
+      'internal/crypto/sig',
+      'internal/crypto/util',
       'internal/encoding',
       'internal/errors',
       'internal/freelist',
@@ -205,9 +215,10 @@
     ];
     const natives: { [name: string]: string } = {};
     for (const nativesKey of nativesKeys)
-      natives[nativesKey] = readFileSync(`/node/${nativesKey}.js`) || err(`missing native '${nativesKey}'`);
+      natives[nativesKey] = arr2str(readFileSync(`/node/${nativesKey}.js`) || err(`missing native '${nativesKey}'`));
     natives["config"] = '\n{"target_defaults":{"cflags":[],"default_configuration":"Release","defines":[],"include_dirs":[],"libraries":[]},"variables":{"asan":0,"coverage":false,"debug_devtools":"node","force_dynamic_crt":0,"host_arch":"x64","icu_data_file":"icudt59l.dat","icu_data_in":"..\\\\..\\\\deps/icu-small\\\\source/data/in\\\\icudt59l.dat","icu_endianness":"l","icu_gyp_path":"tools/icu/icu-generic.gyp","icu_locales":"en,root","icu_path":"deps/icu-small","icu_small":true,"icu_ver_major":"59","node_byteorder":"little","node_enable_d8":false,"node_enable_v8_vtunejit":false,"node_install_npm":true,"node_module_version":57,"node_no_browser_globals":false,"node_prefix":"/usr/local","node_release_urlbase":"https://nodejs.org/download/release/","node_shared":false,"node_shared_cares":false,"node_shared_http_parser":false,"node_shared_libuv":false,"node_shared_openssl":false,"node_shared_zlib":false,"node_tag":"","node_use_bundled_v8":true,"node_use_dtrace":false,"node_use_etw":true,"node_use_lttng":false,"node_use_openssl":true,"node_use_perfctr":true,"node_use_v8_platform":true,"node_without_node_options":false,"openssl_fips":"","openssl_no_asm":0,"shlib_suffix":"so.57","target_arch":"x64","v8_enable_gdbjit":0,"v8_enable_i18n_support":1,"v8_enable_inspector":1,"v8_no_strict_aliasing":1,"v8_optimized_debug":0,"v8_promise_internal_field_count":1,"v8_random_seed":0,"v8_use_snapshot":true,"want_separate_host_toolset":0,"want_separate_host_toolset_mkpeephole":0}}'
       .replace(/"/g, `'`);
+    env.fs["__NOHTTP"] = null;
 
     class ContextifyScript {
       public constructor(private code: string, private options: { displayErrors: boolean, filename: string, lineOffset: number }) {
@@ -215,7 +226,11 @@
       }
 
       public runInThisContext(): any {
+        // try {
         return eval(this.code + `\n//# sourceURL=${this.options.filename}`);
+        // } catch (e) {
+        //   debugger;
+        // }
       }
     }
 
@@ -312,6 +327,10 @@
 
     }
 
+    class FSReqWrap {
+      public oncomplete: Function;
+    }
+
     const statValues = new Float64Array([
       1458881089, 33206, 1, 0, 0, 0, -1, 8162774324649504, 58232, -1, 1484478676521.9932, 1506412651257.9966, 1506412651257.9966, 1484478676521.9932,
       0, 0, 0, 0, 0, 0, 0, 1.020383559167285e-309, 7.86961418868e-312, 7.86961069963e-312, 0, 0, 0, 0]);
@@ -363,14 +382,19 @@
                 return s.length; // TODO
               },
               setupBufferJS: (proto: any) => {
-                proto.utf8Slice = function (start: number, end: number) {
+                proto.utf8Slice = function (this: Buffer, start: number, end: number) {
+                  const slice = this.slice(start, end);
+                  return new TextDecoder().decode(slice);
+                };
+                proto.hexSlice = function (start: number, end: number) {
                   const slice = this.slice(start, end);
                   let result = "";
                   for (let i = 0; i < slice.byteLength; ++i)
-                    result += String.fromCharCode(slice[i]);
+                    result += slice[i].toString(16);
                   return result;
                 };
                 proto.utf8Write = function (string: string, offset: number, length: number) {
+                  // TODO
                   for (var i = 0; i < length && i < this.byteLength - offset; ++i)
                     this[i + offset] = string.charCodeAt(i);
                   return i;
@@ -393,12 +417,32 @@
             return {
               ContextifyScript
             }; // TODO
+          case "crypto":
+            return {
+              randomBytes: (size: number, cb?: Function) => {
+                var rawBytes = new Uint8Array(size)
+                if (size > 0) crypto.getRandomValues(rawBytes);
+                var bytes = Buffer.from(rawBytes.buffer);
+                if (typeof cb === 'function')
+                  return global.process.nextTick(() => cb(null, bytes));
+                return bytes;
+              },
+              randomFill: (bytes: Buffer, offset: number, size: number, cb?: Function) => {
+                var rawBytes = new Uint8Array(size)
+                if (size > 0) crypto.getRandomValues(rawBytes);
+                for (let i = 0; i < size; ++i)
+                  bytes[offset + i] = rawBytes[i];
+                if (typeof cb === 'function')
+                  return global.process.nextTick(() => cb(null, bytes)); // guess
+                return bytes;
+              },
+            }; // TODO
           case "fs":
             return {
               getStatValues: () => statValues,
-              internalModuleReadFile: (path: string) => {
+              internalModuleReadFile: (path: string): string | undefined => {
                 var res = readFileSync(path);
-                return res === null ? undefined : res;
+                return !res ? undefined : arr2str(res);
               },
               internalModuleStat: (path: string) => {
                 // dir
@@ -413,6 +457,9 @@
               lstat: (path: string) => {
                 statValues[0] = statValues[0]; // TODO
               },
+              stat: (path: string) => {
+                statValues[0] = statValues[0]; // TODO
+              },
               open: (path: string, flags: number, mode: number): any /*file descriptor*/ => {
                 if (flags === 0) return { s: readFileSync(path) };
                 debugger;
@@ -420,13 +467,14 @@
               },
               close: (fd: any) => { },
               read: (fd: any, buffer: any, offset: number, length: number, position: number) => {
-                const s = fd.s;
+                const s: ByteBuffer = fd.s;
                 const copy = Math.min(s.length, length);
                 for (let i = 0; i < copy; ++i)
-                  buffer[offset + i] = s.charCodeAt(i);
+                  buffer[offset + i] = s[i];
                 fd.s = s.slice(copy);
                 return copy;
-              }
+              },
+              FSReqWrap: FSReqWrap
             };// TODO
           case "fs_event_wrap":
             return {};// TODO
@@ -441,14 +489,20 @@
             return {
               getCPUs: () => errNotImpl(),
               getFreeMem: () => errNotImpl(),
-              getHomeDirectory: () => errNotImpl(),
+              getHomeDirectory: () => '/home/runner',
               getHostname: () => errNotImpl(),
               getInterfaceAddresses: () => errNotImpl(),
               getLoadAvg: () => errNotImpl(),
-              getOSRelease: () => errNotImpl(),
-              getOSType: () => errNotImpl(),
+              getOSRelease: () => "4.4.0-66-generic",
+              getOSType: () => "Linux",
               getTotalMem: () => errNotImpl(),
-              getUserInfo: () => errNotImpl(),
+              getUserInfo: () => [{
+                uid: 1001,
+                gid: 1001,
+                username: 'runner',
+                homedir: '/home/runner',
+                shell: '/bin/bash'
+              }][0],
               getUptime: () => errNotImpl(),
               isBigEndian: false
             };// TODO
@@ -531,7 +585,7 @@
             return {
               // getPromiseDetails,
               // getProxyDetails,
-              // isAnyArrayBuffer,
+              isAnyArrayBuffer: (x: any) => x instanceof ArrayBuffer,
               // isDataView,
               // isExternal,
               // isMap,
