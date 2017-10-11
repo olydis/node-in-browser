@@ -23,6 +23,7 @@
   const setTimeout = selfAny.setTimeout;
   const clearTimeout = selfAny.clearTimeout;
   const TextDecoder = selfAny.TextDecoder;
+  const TextEncoder = selfAny.TextEncoder;
   const crypto = selfAny.crypto;
   const arr2str = (arr: ByteBuffer): string => new TextDecoder().decode(arr);
 
@@ -103,6 +104,7 @@
 
   // ENTRY POINT
   selfAny.onmessage = function (msg: MessageEvent) {
+    if (!msg.data.env) return;
     env = msg.data.env;
 
     // BOOT
@@ -168,14 +170,14 @@
       'internal/cluster/shared_handle',
       'internal/cluster/utils',
       'internal/cluster/worker',
-      'internal/crypto/certificate',
-      'internal/crypto/cipher',
-      'internal/crypto/diffiehellman',
-      'internal/crypto/hash',
-      'internal/crypto/pbkdf2',
-      'internal/crypto/random',
-      'internal/crypto/sig',
-      'internal/crypto/util',
+      // 'internal/crypto/certificate',
+      // 'internal/crypto/cipher',
+      // 'internal/crypto/diffiehellman',
+      // 'internal/crypto/hash',
+      // 'internal/crypto/pbkdf2',
+      // 'internal/crypto/random',
+      // 'internal/crypto/sig',
+      // 'internal/crypto/util',
       'internal/encoding',
       'internal/errors',
       'internal/freelist',
@@ -247,14 +249,34 @@
       public constructor(fd: number, unknown: boolean) {
         this._fd = fd;
         this._unknown = unknown;
+
+        if (fd === 0) {
+          const onChar = (c: string) => {
+            //if (this.reading) {
+            const buffer = new TextEncoder().encode(c);
+            this.onread(buffer.length, buffer);
+            // }
+          };
+          selfAny.onmessage = (msg: MessageEvent) => {
+            if (msg.data.type !== "stdin") return;
+            onChar(msg.data.ch);
+          };
+        }
       }
 
+      public onread: (nread: number, buffer: Buffer) => void;
+      public reading: boolean;
+
       public getWindowSize(size: [number, number]): any /*error*/ {
-        size[0] = 80; // cols
+        size[0] = 120; // cols
         size[1] = 30; // rows
       }
 
-      public readStart(): any /*error*/ {
+      public readStart(): any /*error?*/ {
+
+      }
+
+      public readStop(): any /*no clue*/ {
 
       }
 
@@ -420,7 +442,7 @@
           case "crypto":
             return {
               randomBytes: (size: number, cb?: Function) => {
-                var rawBytes = new Uint8Array(size)
+                var rawBytes = new Uint8Array(size);
                 if (size > 0) crypto.getRandomValues(rawBytes);
                 var bytes = Buffer.from(rawBytes.buffer);
                 if (typeof cb === 'function')
@@ -428,7 +450,7 @@
                 return bytes;
               },
               randomFill: (bytes: Buffer, offset: number, size: number, cb?: Function) => {
-                var rawBytes = new Uint8Array(size)
+                var rawBytes = new Uint8Array(size);
                 if (size > 0) crypto.getRandomValues(rawBytes);
                 for (let i = 0; i < size; ++i)
                   bytes[offset + i] = rawBytes[i];
@@ -462,6 +484,7 @@
               },
               open: (path: string, flags: number, mode: number): any /*file descriptor*/ => {
                 if (flags === 0) return { s: readFileSync(path) };
+                if (flags === 266) return { s: readFileSync(path) };
                 debugger;
                 errNotImpl();
               },

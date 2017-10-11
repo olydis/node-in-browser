@@ -1,20 +1,31 @@
 <html>
 
 <head>
+  <!--for stdio-->
+  <link rel="stylesheet" href="xterm/xterm.css" />
+  <script src="xterm/xterm.js"></script>
+  <!--for stdio-->
+
   <script src="./bin/index.js" type="text/javascript"></script>
   <style>
     #stderr {
       color: darkred;
     }
+
+    #stdout,
+    #stderr {
+      display: none;
+    }
   </style>
 </head>
 
-<body ondrop="drop_handler(event)" ondragover="dragover_handler(event)">
+<body ondrop="drop_handler(event)" ondragover="dragover_handler(event)" onload="load()">
   <!-- <button onclick="testFixture()">test fixture</button>
   <button onclick="testStack()">test stack</button> -->
   <div id="status"></div>
   <pre id="stdout"></pre>
   <pre id="stderr"></pre>
+  <div id="xterm"></div>
 </body>
 
 </html>

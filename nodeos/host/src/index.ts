@@ -1,21 +1,27 @@
 /// <reference path="../../types/vfs.ts" />
 /// <reference path="../../types/env.ts" />
+/// <reference path="../../../node_modules/@types/xterm/index.d.ts" />
+
+eval("self.Xterm = Terminal"); // alias, somehow the typings talk about "Xterm"
+const terminal = new Xterm(<Xterm.IOptions>{ cursorBlink: true, cols: 120, rows: 30, convertEol: true });
 
 /**
  * Represents an execution environment, i.e. virtual OS with architecture, FS, etc.
  * Can host multiple workers that will have a consistent view of the FS, process.arch, etc.
  */
 class VirtualMachine {
-  public constructor(private fs: VirtualFileSystem) {
+  public constructor(private fs: VirtualFileSystem, private terminal: Xterm) {
 
   }
 
   private syscall(origin: Worker, func: string, arg: any): void {
     switch (func) {
       case "stdout":
+        this.terminal.write(arg);
         eval("document").getElementById("stdout").textContent += arg;
         break;
       case "stderr":
+        this.terminal.write(arg);
         eval("document").getElementById("stderr").textContent += arg;
         break;
       case "error":
@@ -40,6 +46,7 @@ class VirtualMachine {
   public node(args: string[], keepAlive: boolean = false): void {
     eval("document").getElementById("stdout").textContent = "";
     eval("document").getElementById("stderr").textContent = "";
+    this.terminal.clear();
     const vm = this;
     const worker = new Worker("/bin/node/app.js");
     if (keepAlive) (self as any)._keepAlive = worker;
@@ -47,6 +54,8 @@ class VirtualMachine {
     // worker.onerror = function (ev: ErrorEvent) { console.error(JSON.stringify(ev, null, 2)); };
     const env: Environment = { fs: this.fs, cwd: "/cwd" };
     worker.postMessage({ args, env });
+
+    this.terminal.on("data", ch => worker.postMessage({ type: "stdin", ch: ch }));
   }
 }
 
@@ -108,9 +117,14 @@ async function drop_handler(ev: DragEvent) {
   const firstPath = Object.keys(fs)[0];
   if (!firstPath) return;
 
-  const vm = new VirtualMachine(fs);
+  const vm = new VirtualMachine(fs, terminal);
   const start = (args: string[], keepAlive: boolean) => { console.log(args); vm.node(args, keepAlive); };
   (self as any).node = (...args: string[]) => start(args, false);
   (self as any).nodeDebug = (...args: string[]) => start(args, true);
   start(["/" + firstPath.split('/')[1]], false);
+}
+function load() {
+  terminal.open(document.getElementById("xterm") as any, true);
+
+  new VirtualMachine({}, terminal).node([], false)
 }
