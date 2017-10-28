@@ -617,7 +617,16 @@
               isPromise: (x: any) => x instanceof Promise,
               isSet: (x: any) => x instanceof Set,
               // isSetIterator,
-              // isTypedArray,
+              isTypedArray: (x: any) =>
+                x instanceof Int8Array ||
+                x instanceof Uint8Array ||
+                x instanceof Uint8ClampedArray ||
+                x instanceof Int16Array ||
+                x instanceof Uint16Array ||
+                x instanceof Int32Array ||
+                x instanceof Uint32Array ||
+                x instanceof Float32Array ||
+                x instanceof Float64Array,
               isRegExp: (x: any) => x instanceof RegExp,
               isDate: (x: any) => x instanceof Date,
               // kPending,
