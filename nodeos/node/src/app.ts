@@ -259,7 +259,8 @@
           };
           selfAny.onmessage = (msg: MessageEvent) => {
             if (msg.data.type !== "stdin") return;
-            onChar(msg.data.ch);
+            // onChar(msg.data.ch);
+            (this as any).owner.emit("keypress", msg.data.ch, msg.data.key);
           };
         }
       }
@@ -609,18 +610,21 @@
               // getPromiseDetails,
               // getProxyDetails,
               isAnyArrayBuffer: (x: any) => x instanceof ArrayBuffer,
-              // isDataView,
+              isDataView: (x: any) => x instanceof DataView,
               // isExternal,
-              // isMap,
+              isMap: (x: any) => x instanceof Map,
               // isMapIterator,
-              // isPromise,
-              // isSet,
+              isPromise: (x: any) => x instanceof Promise,
+              isSet: (x: any) => x instanceof Set,
               // isSetIterator,
               // isTypedArray,
               isRegExp: (x: any) => x instanceof RegExp,
               isDate: (x: any) => x instanceof Date,
               // kPending,
               // kRejected,
+              startSigintWatchdog: () => { },
+              stopSigintWatchdog: () => { },
+              getHiddenValue: (error: any, noIdea: any): boolean => false
             }; // TODO
           case "uv":
             return {
@@ -632,7 +636,9 @@
         }
       },
       cwd: () => "/",
-      env: {},
+      env: {
+        // NODE_DEBUG: "repl,timer,stream,esm,module,net"
+      },
       execPath: "/prefix/bin/node",
       moduleLoadList: [] as string[],
       pid: 42,

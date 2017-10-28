@@ -55,7 +55,20 @@ class VirtualMachine {
     const env: Environment = { fs: this.fs, cwd: "/cwd" };
     worker.postMessage({ args, env });
 
-    this.terminal.on("data", ch => worker.postMessage({ type: "stdin", ch: ch }));
+    // this.terminal.on("data", ch => worker.postMessage({ type: "stdin", ch: ch }));
+    this.terminal.on("key", (ch, key) => {
+      worker.postMessage({
+        type: "stdin",
+        ch: ch,
+        key: {
+          name: key.key.toLowerCase().replace(/^arrow/, ""),
+          ctrl: key.ctrlKey,
+          shift: key.shiftKey,
+          meta: key.metaKey,
+          alt: key.altKey
+        }
+      })
+    });
   }
 }
 
