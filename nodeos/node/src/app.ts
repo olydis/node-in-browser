@@ -104,7 +104,7 @@
 
   // ENTRY POINT
   selfAny.onmessage = function (msg: MessageEvent) {
-    if (!msg.data.env) return;
+    if (msg.data.type !== "start") return;
     env = msg.data.env;
 
     // BOOT
@@ -362,7 +362,9 @@
     global.global = global;
 
     const runMicrotasks = () => {
-
+      const proc: any = process;
+      if (proc._needImmediateCallback)
+        proc._immediateCallback();
     };
 
     const process = {
@@ -372,7 +374,8 @@
       _setupPromises: () => { },
       _setupNextTick: (_tickCallback: any, _runMicrotasks: any) => {
         _runMicrotasks.runMicrotasks = runMicrotasks;
-        return [];
+        setInterval(_tickCallback, 1); // teardown implicit?
+        return [0, 0];
       },
       argv: ["node", ...msg.data.args],
       binding: (name: string): any => {

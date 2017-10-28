@@ -53,7 +53,7 @@ class VirtualMachine {
     worker.onmessage = function (ev: MessageEvent) { const { f, x } = ev.data; vm.syscall(this, f, x); };
     // worker.onerror = function (ev: ErrorEvent) { console.error(JSON.stringify(ev, null, 2)); };
     const env: Environment = { fs: this.fs, cwd: "/cwd" };
-    worker.postMessage({ args, env });
+    worker.postMessage({ type: "start", args, env });
 
     // this.terminal.on("data", ch => worker.postMessage({ type: "stdin", ch: ch }));
     this.terminal.on("key", (ch, key) => {
