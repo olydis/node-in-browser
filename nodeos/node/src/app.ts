@@ -26,6 +26,7 @@
   const TextEncoder = selfAny.TextEncoder;
   const crypto = selfAny.crypto;
   const arr2str = (arr: ByteBuffer): string => new TextDecoder().decode(arr);
+  const console = selfAny.console;
 
   const writeBack = (absolutePath: string, content: ByteBuffer | null | undefined) => {
     postMessage({ f: "WRITE", x: { path: absolutePath, content: content } });
@@ -222,14 +223,23 @@
       .replace(/"/g, `'`);
     env.fs["__NOHTTP"] = null;
 
+    const newContext = (target: any = {}) =>
+      new Proxy(target, {
+        has: () => true,
+        get: (_, k) => k in target ? target[k] : (1, eval)(k as string)
+      });
+    const theContext = newContext({});
+
     class ContextifyScript {
       public constructor(private code: string, private options: { displayErrors: boolean, filename: string, lineOffset: number }) {
-
       }
 
       public runInThisContext(): any {
         // try {
-        return eval(this.code + `\n//# sourceURL=${this.options.filename}`);
+
+        // sinful code
+        return eval("(() =>  { with (theContext) { return eval(this.code + `\\n//# sourceURL=${this.options.filename}`); } })()");
+
         // } catch (e) {
         //   debugger;
         // }

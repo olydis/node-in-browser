@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "alwaysStrict": true,
+    "alwaysStrict": false,
     "forceConsistentCasingInFileNames": true,
+    "noImplicitUseStrict": true,
     "module": "amd",
     "noEmitOnError": true,
     "noImplicitAny": true,
@@ -10,7 +11,7 @@
     "outFile": "../../www/bin/node/app.js",
     "sourceMap": false,
     "strict": true,
-    "target": "es6",
+    "target": "es5",
     "types": [
       "node"
     ],
