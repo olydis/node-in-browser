@@ -620,7 +620,7 @@
             };
           case "util":
             return {
-              // getPromiseDetails,
+              getPromiseDetails: (x: Promise<any>) => x && x.toString(), // TODO
               // getProxyDetails,
               isAnyArrayBuffer: (x: any) => x instanceof ArrayBuffer,
               isDataView: (x: any) => x instanceof DataView,
