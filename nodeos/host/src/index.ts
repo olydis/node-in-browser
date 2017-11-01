@@ -3,7 +3,7 @@
 /// <reference path="../../../node_modules/@types/xterm/index.d.ts" />
 
 eval("self.Xterm = Terminal"); // alias, somehow the typings talk about "Xterm"
-const terminal = new Xterm(<Xterm.IOptions>{ cursorBlink: true, cols: 120, rows: 30, convertEol: true });
+const terminal = new Xterm(<Xterm.IOptions>{ cursorBlink: true, cols: 120, rows: 30, convertEol: true, });
 
 /**
  * Represents an execution environment, i.e. virtual OS with architecture, FS, etc.
@@ -36,6 +36,10 @@ class VirtualMachine {
       //   break;
       case "WRITE":
         this.fs[arg.path] = arg.content;
+        break;
+      case "EXIT":
+        const exitCode = arg;
+        origin.terminate();
         break;
     }
   }
@@ -137,7 +141,19 @@ async function drop_handler(ev: DragEvent) {
   start(["/" + firstPath.split('/')[1]], false);
 }
 function load() {
-  terminal.open(document.getElementById("xterm") as any, true);
+  const terminalDiv = document.getElementById("xterm") as HTMLElement;
+  terminal.open(terminalDiv, true);
+  const term = terminal as any;
+  const resize = () => {
+    const cw = term.charMeasure.width;
+    const ch = term.charMeasure.height;
+    if (cw && ch)
+      terminal.resize(terminalDiv.clientWidth / cw | 0, terminalDiv.clientHeight / ch | 0);
+    // TODO: need to communicate that to process!
+  };
+  resize();
+  terminal.on("open", resize);
+  (document.body as any).onresize = resize;
 
   new VirtualMachine({}, terminal).node([], false)
-}
+} 

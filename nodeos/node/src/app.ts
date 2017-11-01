@@ -226,7 +226,13 @@
     const newContext = (target: any = {}) =>
       new Proxy(target, {
         has: () => true,
-        get: (_, k) => k in target ? target[k] : (1, eval)(k as string)
+        get: (_, k) => {
+          if (k in target)
+            return target[k];
+          if (k === "self")
+            throw new ReferenceError(`${k} is not defined`);
+          return eval(k as string);
+        }
       });
     const theContext = newContext({});
 
@@ -238,7 +244,7 @@
         // try {
 
         // sinful code
-        return eval("(() =>  { with (theContext) { return eval(this.code + `\\n//# sourceURL=${this.options.filename}`); } })()");
+        return eval("(() => { with (theContext) { return eval(this.code + `\\n//# sourceURL=${this.options.filename}`); } })()");
 
         // } catch (e) {
         //   debugger;
@@ -259,6 +265,7 @@
       public constructor(fd: number, unknown: boolean) {
         this._fd = fd;
         this._unknown = unknown;
+        _handleWrapQueue.push(this);
 
         if (fd === 0) {
           const onChar = (c: string) => {
@@ -313,7 +320,13 @@
             break;
         }
       }
+
+      public close(): void {
+        _handleWrapQueue.splice(_handleWrapQueue.indexOf(this), 1);
+      }
     }
+
+    const _handleWrapQueue: any[] = [];
 
     const startTime = Date.now();
     class Timer {
@@ -327,6 +340,7 @@
 
       public constructor() {
         this.__handle = null;
+        _handleWrapQueue.push(this);
       }
 
       [k: number]: () => void;
@@ -339,6 +353,10 @@
 
       public stop(): void {
         if (this.__handle !== null) clearInterval(this.__handle);
+      }
+
+      public close(): void {
+        _handleWrapQueue.splice(_handleWrapQueue.indexOf(this), 1);
       }
     }
 
@@ -375,9 +393,15 @@
       const proc: any = process;
       if (proc._needImmediateCallback)
         proc._immediateCallback();
+      else {
+        if (_handleWrapQueue.length === 0)
+          proc.exit(0);
+      }
     };
 
     const process = {
+      _getActiveHandles: () => _handleWrapQueue.map((x: any) => x.owner || x),
+      _getActiveRequests: () => [], // TODO
       _rawDebug: (x: any) => postMessage({ f: "error", x: { f: "_rawDebug", x: x } }),
       _setupDomainUse: (domain: any, stack: any) => [],
       _setupProcessObject: (pushValueToArrayFunction: Function) => { },
@@ -621,15 +645,15 @@
           case "util":
             return {
               getPromiseDetails: (x: Promise<any>) => x && x.toString(), // TODO
-              // getProxyDetails,
+              getProxyDetails: (x: Promise<any>) => x && x.toString(), // TODO
               isAnyArrayBuffer: (x: any) => x instanceof ArrayBuffer,
               isDataView: (x: any) => x instanceof DataView,
-              // isExternal,
+              isExternal: (x: any) => false, // TODO: ???
               isMap: (x: any) => x instanceof Map,
-              // isMapIterator,
+              isMapIterator: (x: any) => (x || {}).constructor === new Map().entries().constructor,
               isPromise: (x: any) => x instanceof Promise,
               isSet: (x: any) => x instanceof Set,
-              // isSetIterator,
+              isSetIterator: (x: any) => (x || {}).constructor === new Set().entries().constructor,
               isTypedArray: (x: any) =>
                 x instanceof Int8Array ||
                 x instanceof Uint8Array ||
@@ -664,6 +688,12 @@
       execPath: "/prefix/bin/node",
       moduleLoadList: [] as string[],
       pid: 42,
+      reallyExit: (exitCode: number) => {
+        postMessage({ f: "EXIT", x: exitCode });
+        while (true)
+          ; // TODO smarter spin wait? maybe some sync-IO stuff?
+        // don't allow any further execution (not caller, but also no timers etc.)
+      },
       release: {
         name: "node-box"
       },
