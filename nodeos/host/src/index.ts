@@ -60,6 +60,12 @@ class VirtualMachine {
     worker.postMessage({ type: "start", args, env });
 
     this.terminal.on("data", (ch: string) => {
+      if (ch.length > 8) { // assume paste (TODO: clean, see VSCode recent developments)
+        worker.postMessage({
+          type: "stdin",
+          ch: ch
+        });
+      }
       if (ch.length === 1) {
         switch (ch.charCodeAt(0)) {
           case 3: // Ctrl + C
@@ -80,7 +86,7 @@ class VirtualMachine {
           meta: key.metaKey,
           alt: key.altKey
         }
-      })
+      });
     });
   }
 }
