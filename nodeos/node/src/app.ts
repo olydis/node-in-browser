@@ -360,6 +360,10 @@
       }
     }
 
+    class TCP {
+
+    }
+
     class ShutdownWrap {
 
     }
@@ -618,7 +622,9 @@
               WriteWrap: WriteWrap
             };// TODO
           case "tcp_wrap":
-            return {};// TODO
+            return {
+              TCP: TCP
+            };// TODO
           case "timer_wrap":
             return {
               Timer: Timer

@@ -59,8 +59,17 @@ class VirtualMachine {
     const env: Environment = { fs: this.fs, cwd: "/cwd" };
     worker.postMessage({ type: "start", args, env });
 
-    // this.terminal.on("data", ch => worker.postMessage({ type: "stdin", ch: ch }));
-    this.terminal.on("key", (ch, key) => {
+    this.terminal.on("data", (ch: string) => {
+      if (ch.length === 1) {
+        switch (ch.charCodeAt(0)) {
+          case 3: // Ctrl + C
+            break;
+          case 22: // Ctrl + V
+            break;
+        }
+      }
+    });
+    this.terminal.on("key", (ch: string, key) => {
       worker.postMessage({
         type: "stdin",
         ch: ch,
@@ -153,7 +162,8 @@ function load() {
   };
   resize();
   terminal.on("open", resize);
+  terminal.on("title", title => document.title = title); // console.log(`${String.fromCharCode(27)}]0;${title}${String.fromCharCode(7)}`)
   (document.body as any).onresize = resize;
 
   new VirtualMachine({}, terminal).node([], false)
-} 
+}
