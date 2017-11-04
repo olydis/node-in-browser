@@ -611,7 +611,7 @@
                 if (flags === 0) result = { s: readFileSync(path) };
                 if (flags === 266) result = { s: readFileSync(path) };
                 if (result !== undefined) {
-                  if (req) req.oncomplete(undefined /*error, if one happened*/);
+                  if (req) req.oncomplete(undefined /*error, if one happened*/, result);
                   return result;
                 }
                 debugger;
