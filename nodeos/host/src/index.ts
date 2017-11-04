@@ -25,7 +25,10 @@ class VirtualMachine {
         eval("document").getElementById("stderr").textContent += arg;
         break;
       case "error":
-        console.error(arg);
+        this.terminal.write("[Runtime Error]\n");
+        this.terminal.write(arg + "\n");
+        if (arg.stack)
+          this.terminal.write(arg.stack + "\n");
         break;
       // case "__trace.fs":
       // case "__trace.require":
@@ -166,10 +169,9 @@ function load() {
       terminal.resize(terminalDiv.clientWidth / cw | 0, terminalDiv.clientHeight / ch | 0);
     // TODO: need to communicate that to process!
   };
-  resize();
-  terminal.on("open", resize);
   terminal.on("title", title => document.title = title); // console.log(`${String.fromCharCode(27)}]0;${title}${String.fromCharCode(7)}`)
   (document.body as any).onresize = resize;
+  setInterval(resize, 500);
 
   new VirtualMachine({}, terminal).node([], false)
 }

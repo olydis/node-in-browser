@@ -31,6 +31,21 @@
   const writeBack = (absolutePath: string, content: ByteBuffer | null | undefined) => {
     postMessage({ f: "WRITE", x: { path: absolutePath, content: content } });
   }
+  const isDirIndicator = (absolutePath: string) => `<title>Index of ${absolutePath}`;
+  const isDir = (absolutePath: string, buffer: ByteBuffer | undefined): boolean => !!buffer && arr2str(buffer).includes(isDirIndicator(absolutePath));
+  const rawReadHttpServer = (absolutePath: string): ByteBuffer | undefined => {
+    const request = new XMLHttpRequest();
+    request.responseType = "arraybuffer";
+    request.open('GET', absolutePath, false);
+    request.send(null);
+    if (request.status === 200) {
+      writeBack(absolutePath, request.response);
+      return new Uint8Array(request.response);
+    }
+    return undefined;
+  };
+  const throwENOENT = (absolutePath: string) => err(`ENOENT: no such file or directory, scandir '${absolutePath}'`);
+  const throwENOTDIR = (absolutePath: string) => err(`ENOTDIR: not a directory, scandir '${absolutePath}'`);
   const readFileSync = (absolutePath: string): ByteBuffer | undefined => {
     // - try vfs
     {
@@ -41,44 +56,52 @@
     }
     // - try server
     if (!("__NOHTTP" in env.fs)) {
-      const request = new XMLHttpRequest();
-      request.responseType = "arraybuffer";
-      request.open('GET', absolutePath, false);
-      request.send(null);
-      if (request.status === 200) {
-        //   // rule out directory listings
-        //   const drequest = new XMLHttpRequest();
-        //   drequest.open('GET', absolutePath + '/', false);
-        //   drequest.send(null);
-        // if (drequest.status !== 200) 
-        writeBack(absolutePath, request.response);
-        return env.fs[absolutePath] = request.response;
-      }
+      const result = rawReadHttpServer(absolutePath);
+      return env.fs[absolutePath] = isDir(absolutePath, result) ? undefined : result;
     }
     // - fail
     return env.fs[absolutePath] = undefined;
   }
-  const existsFolderSync = (absolutePath: string): boolean => {
-    // - try vfs
-    {
-      if (absolutePath in env.fs && env.fs[absolutePath] == null) return true;
-    }
+  const readDirSync = (absolutePath: string): string[] => {
+    // evidence for file-ness?
+    if (absolutePath in env.fs && env.fs[absolutePath] !== null && env.fs[absolutePath] !== undefined)
+      throwENOTDIR(absolutePath);
+    const envFsExists = Object.keys(env.fs).some(x => x.startsWith(absolutePath));
+    // known files?
+    let files = Object.keys(env.fs)
+      .filter(x => x.startsWith(absolutePath + '/'))
+      .map(x => x.slice(absolutePath.length + 1))
+      .filter(x => !x.includes('/'));
+
     // - try server
-    // if (!env.fs["__NOHTTP"]) {
-    //   const request = new XMLHttpRequest();
-    //   request.open('GET', absolutePath, false);
-    //   request.send(null);
-    //   if (request.status === 200) {
-    //     //   // rule out directory listings
-    //     //   const drequest = new XMLHttpRequest();
-    //     //   drequest.open('GET', absolutePath + '/', false);
-    //     //   drequest.send(null);
-    //     // if (drequest.status !== 200) 
-    //     return env.fs[absolutePath] = request.responseText;
-    //   }
-    // }
-    // - fail
-    return false;
+    if (!("__NOHTTP" in env.fs)) {
+      const result = rawReadHttpServer(absolutePath);
+      if (result !== undefined) {
+        if (!isDir(absolutePath, result))
+          throwENOTDIR(absolutePath);
+        // add files
+        const raw = arr2str(result);
+        let matches = raw.match(/>[^<>]+<\/a><\/td>/g) || [];
+        matches = matches.map(x => x.slice(1, -9));
+        matches = matches.map(x => x.endsWith('/') ? x.slice(0, -1) : x);
+        matches = matches.filter(x => x !== "..");
+        files.push(...matches);
+      }
+      else if (!envFsExists)
+        throwENOENT(absolutePath);
+    }
+
+    // normalize
+    files = files.sort();
+    files = files.filter((f, i) => i === 0 || f !== files[i - 1]);
+    return files;
+  }
+  const existsFolderSync = (absolutePath: string): boolean => {
+    try {
+      return Array.isArray(readDirSync(absolutePath));
+    } catch {
+      return false;
+    }
   }
   const existsSync = (absolutePath: string): boolean => readFileSync(absolutePath) !== undefined;
   const join = (basePath: string, relative: string) => {
@@ -221,7 +244,7 @@
       natives[nativesKey] = arr2str(readFileSync(`/node/${nativesKey}.js`) || err(`missing native '${nativesKey}'`));
     natives["config"] = '\n{"target_defaults":{"cflags":[],"default_configuration":"Release","defines":[],"include_dirs":[],"libraries":[]},"variables":{"asan":0,"coverage":false,"debug_devtools":"node","force_dynamic_crt":0,"host_arch":"x64","icu_data_file":"icudt59l.dat","icu_data_in":"..\\\\..\\\\deps/icu-small\\\\source/data/in\\\\icudt59l.dat","icu_endianness":"l","icu_gyp_path":"tools/icu/icu-generic.gyp","icu_locales":"en,root","icu_path":"deps/icu-small","icu_small":true,"icu_ver_major":"59","node_byteorder":"little","node_enable_d8":false,"node_enable_v8_vtunejit":false,"node_install_npm":true,"node_module_version":57,"node_no_browser_globals":false,"node_prefix":"/usr/local","node_release_urlbase":"https://nodejs.org/download/release/","node_shared":false,"node_shared_cares":false,"node_shared_http_parser":false,"node_shared_libuv":false,"node_shared_openssl":false,"node_shared_zlib":false,"node_tag":"","node_use_bundled_v8":true,"node_use_dtrace":false,"node_use_etw":true,"node_use_lttng":false,"node_use_openssl":true,"node_use_perfctr":true,"node_use_v8_platform":true,"node_without_node_options":false,"openssl_fips":"","openssl_no_asm":0,"shlib_suffix":"so.57","target_arch":"x64","v8_enable_gdbjit":0,"v8_enable_i18n_support":1,"v8_enable_inspector":1,"v8_no_strict_aliasing":1,"v8_optimized_debug":0,"v8_promise_internal_field_count":1,"v8_random_seed":0,"v8_use_snapshot":true,"want_separate_host_toolset":0,"want_separate_host_toolset_mkpeephole":0}}'
       .replace(/"/g, `'`);
-    env.fs["__NOHTTP"] = null;
+    //env.fs["__NOHTTP"] = null;
 
     const newContext = (target: any = {}) =>
       new Proxy(target, {
@@ -231,6 +254,8 @@
             return target[k];
           if (k === "self")
             throw new ReferenceError(`${k} is not defined`);
+          if (k === "WScript")
+            return undefined; // TODO: this is a workaround for `typeof WScript` - would throw ReferenceError otherwise! :(
           return eval(k as string);
         }
       });
@@ -379,7 +404,10 @@
     }
 
     class HTTPParser {
+      public static readonly RESPONSE = 0;
+      public reinitialize(_: number): void {
 
+      }
     }
 
     class FSReqWrap {
@@ -387,8 +415,21 @@
     }
 
     const statValues = new Float64Array([
-      1458881089, 33206, 1, 0, 0, 0, -1, 8162774324649504, 58232, -1, 1484478676521.9932, 1506412651257.9966, 1506412651257.9966, 1484478676521.9932,
-      0, 0, 0, 0, 0, 0, 0, 1.020383559167285e-309, 7.86961418868e-312, 7.86961069963e-312, 0, 0, 0, 0]);
+      1458881089, // device ID
+      33207, // protection
+      1, // # hard links
+      0, // owner's user ID
+      0, // 4 - owner's group ID
+      0, // device ID if special file
+      -1, // block size
+      8162774324649504, // iNode number
+      58232, // 8 - size
+      -1, // # blocks
+      1484478676521.9932, // last access
+      1506412651257.9966, // last modification
+      1506412651257.9966, // last iNode modification?
+      1484478676521.9932, // creation time?
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
     let global: NodeJS.Global = self as any;
     global.global = global;
@@ -402,6 +443,8 @@
           proc.exit(0);
       }
     };
+
+    type FileDescriptor = { s: ByteBuffer };
 
     const process = {
       _getActiveHandles: () => _handleWrapQueue.map((x: any) => x.owner || x),
@@ -471,7 +514,11 @@
               GetNameInfoReqWrap: () => { },
               QueryReqWrap: () => { },
               ChannelWrap: ChannelWrap,
-              isIP: () => { }
+              isIP: () => { },
+              getaddrinfo: function (addr_info_wrap: { family: number, hostname: string, callback: Function, oncomplete: (result: { 0: number, 1: string[] }) => void }, hostname: string, family: number, hints: number, verbatim: boolean) {
+                addr_info_wrap.oncomplete({ 0: 0, 1: [addr_info_wrap.hostname] })
+                return 0; // = success
+              }
             };// TODO
           case "config":
             return {}; // TODO
@@ -502,6 +549,13 @@
               },
             }; // TODO
           case "fs":
+            const fstat = (fd: FileDescriptor | undefined, req?: FSReqWrap): void => {
+              if (fd !== undefined) {
+                statValues[8] = fd.s.byteLength;
+              }
+              // TODO
+              if (req) req.oncomplete(/*error, if one happened*/);
+            };
             return {
               getStatValues: () => statValues,
               internalModuleReadFile: (path: string): string | undefined => {
@@ -515,29 +569,53 @@
                 if (existsSync(path)) return 0;
                 return -4058;
               },
-              fstat: (path: string) => {
-                statValues[0] = statValues[0]; // TODO
+              fstat: fstat,
+              lstat: (path: string, req?: FSReqWrap) => {
+                try {
+                  const buffer = readFileSync(path)
+                    || (readDirSync(path) && new Uint8Array(0))
+                    || err("TODO: correct error treatment");
+                  fstat({ s: buffer }, req);
+                } catch {
+                  fstat(undefined, req);
+                  return;
+                }
               },
-              lstat: (path: string) => {
-                statValues[0] = statValues[0]; // TODO
+              stat: (path: string, req?: FSReqWrap) => {
+                try {
+                  const buffer = readFileSync(path)
+                    || (readDirSync(path) && new Uint8Array(0))
+                    || err("TODO: correct error treatment");
+                  fstat({ s: buffer }, req);
+                } catch {
+                  fstat(undefined, req);
+                  return;
+                }
               },
-              stat: (path: string) => {
-                statValues[0] = statValues[0]; // TODO
+              open: (path: string, flags: number, mode: number, req?: FSReqWrap): FileDescriptor | any => {
+                let result: FileDescriptor | undefined;
+                if (flags === 0) result = { s: readFileSync(path) };
+                if (flags === 266) result = { s: readFileSync(path) };
+                if (result == undefined) {
+                  debugger;
+                  errNotImpl();
+                }
+                if (req) req.oncomplete(result);
+                else return result;
               },
-              open: (path: string, flags: number, mode: number): any /*file descriptor*/ => {
-                if (flags === 0) return { s: readFileSync(path) };
-                if (flags === 266) return { s: readFileSync(path) };
-                debugger;
-                errNotImpl();
-              },
-              close: (fd: any) => { },
-              read: (fd: any, buffer: any, offset: number, length: number, position: number) => {
-                const s: ByteBuffer = fd.s;
+              close: (fd: FileDescriptor) => { },
+              read: (fd: FileDescriptor, buffer: any, offset: number, length: number, position: number) => {
+                const s = fd.s;
                 const copy = Math.min(s.length, length);
                 for (let i = 0; i < copy; ++i)
                   buffer[offset + i] = s[i];
                 fd.s = s.slice(copy);
                 return copy;
+              },
+              readdir: (path: string, encoding: any, req?: FSReqWrap): string[] | any => {
+                const result: string[] = readDirSync(path);
+                if (req) req.oncomplete(result);
+                else return result;
               },
               FSReqWrap: FSReqWrap
             };// TODO
@@ -691,7 +769,7 @@
       env: {
         // NODE_DEBUG: "repl,timer,stream,esm,module,net"
       },
-      execPath: "/prefix/bin/node",
+      execPath: "/bin/node/app.js",
       moduleLoadList: [] as string[],
       pid: 42,
       reallyExit: (exitCode: number) => {
