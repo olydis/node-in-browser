@@ -46,21 +46,24 @@
   };
   const throwENOENT = (absolutePath: string) => err(`ENOENT: no such file or directory, scandir '${absolutePath}'`);
   const throwENOTDIR = (absolutePath: string) => err(`ENOTDIR: not a directory, scandir '${absolutePath}'`);
-  const readFileSync = (absolutePath: string): ByteBuffer | undefined => {
+  const readFileSync = (absolutePath: string): ByteBuffer => {
     // - try vfs
     {
       if (absolutePath in env.fs)
-        return env.fs[absolutePath] === null || env.fs[absolutePath] === undefined
-          ? undefined
-          : env.fs[absolutePath] as any;
+        return env.fs[absolutePath] === null
+          ? err("TODO: correct message")
+          : (env.fs[absolutePath] === undefined
+            ? throwENOENT(absolutePath)
+            : env.fs[absolutePath] as any);
     }
     // - try server
     if (!("__NOHTTP" in env.fs)) {
-      const result = rawReadHttpServer(absolutePath);
-      return env.fs[absolutePath] = isDir(absolutePath, result) ? undefined : result;
+      const result = rawReadHttpServer(absolutePath) || throwENOENT(absolutePath);
+      if (isDir(absolutePath, result)) err("TODO: correct message");
+      return env.fs[absolutePath] = result;
     }
     // - fail
-    return env.fs[absolutePath] = undefined;
+    return throwENOENT(absolutePath);
   }
   const readDirSync = (absolutePath: string): string[] => {
     // evidence for file-ness?
@@ -103,7 +106,14 @@
       return false;
     }
   }
-  const existsSync = (absolutePath: string): boolean => readFileSync(absolutePath) !== undefined;
+  const existsSync = (absolutePath: string): boolean => {
+    try {
+      readFileSync(absolutePath);
+      return true;
+    } catch {
+      return false;
+    }
+  };
   const join = (basePath: string, relative: string) => {
     let path = basePath + '/' + relative;
     function normalizeArray(parts: string[]) {
@@ -559,8 +569,12 @@
             return {
               getStatValues: () => statValues,
               internalModuleReadFile: (path: string): string | undefined => {
-                var res = readFileSync(path);
-                return !res ? undefined : arr2str(res);
+                try {
+                  const res = readFileSync(path);
+                  return arr2str(res);
+                } catch {
+                  return undefined;
+                }
               },
               internalModuleStat: (path: string) => {
                 // dir
@@ -592,16 +606,16 @@
                   return;
                 }
               },
-              open: (path: string, flags: number, mode: number, req?: FSReqWrap): FileDescriptor | any => {
+              open: (path: string, flags: number, mode: number, req?: FSReqWrap): FileDescriptor => {
                 let result: FileDescriptor | undefined;
                 if (flags === 0) result = { s: readFileSync(path) };
                 if (flags === 266) result = { s: readFileSync(path) };
-                if (result == undefined) {
-                  debugger;
-                  errNotImpl();
+                if (result !== undefined) {
+                  if (req) req.oncomplete(undefined /*error, if one happened*/);
+                  return result;
                 }
-                if (req) req.oncomplete(result);
-                else return result;
+                debugger;
+                return errNotImpl();
               },
               close: (fd: FileDescriptor) => { },
               read: (fd: FileDescriptor, buffer: any, offset: number, length: number, position: number) => {
@@ -615,7 +629,7 @@
               readdir: (path: string, encoding: any, req?: FSReqWrap): string[] | any => {
                 const result: string[] = readDirSync(path);
                 if (req) req.oncomplete(result);
-                else return result;
+                return result;
               },
               FSReqWrap: FSReqWrap
             };// TODO
