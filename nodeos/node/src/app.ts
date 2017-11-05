@@ -456,6 +456,7 @@
 
     type FileDescriptor = { s: ByteBuffer };
 
+    const nextTick = (cb: () => void): void => (process as any).nextTick(cb);
     const process = {
       _getActiveHandles: () => _handleWrapQueue.map((x: any) => x.owner || x),
       _getActiveRequests: () => [], // TODO
@@ -564,7 +565,7 @@
                 statValues[8] = fd.s.byteLength;
               }
               // TODO
-              if (req) req.oncomplete(/*error, if one happened*/);
+              if (req) nextTick(() => req.oncomplete(/*error, if one happened*/));
             };
             return {
               getStatValues: () => statValues,
@@ -611,24 +612,27 @@
                 if (flags === 0) result = { s: readFileSync(path) };
                 if (flags === 266) result = { s: readFileSync(path) };
                 if (result !== undefined) {
-                  if (req) req.oncomplete(undefined /*error, if one happened*/, result);
+                  if (req) nextTick(() => req.oncomplete(undefined /*error, if one happened*/, result));
                   return result;
                 }
                 debugger;
                 return errNotImpl();
               },
-              close: (fd: FileDescriptor) => { },
-              read: (fd: FileDescriptor, buffer: any, offset: number, length: number, position: number) => {
+              close: (fd: FileDescriptor, req?: FSReqWrap) => {
+                if (req) nextTick(() => req.oncomplete());
+              },
+              read: (fd: FileDescriptor, buffer: any, offset: number, length: number, position: number, req?: FSReqWrap) => {
                 const s = fd.s;
                 const copy = Math.min(s.length, length);
                 for (let i = 0; i < copy; ++i)
                   buffer[offset + i] = s[i];
                 fd.s = s.slice(copy);
+                if (req) nextTick(() => req.oncomplete(undefined /*error*/, copy));
                 return copy;
               },
               readdir: (path: string, encoding: any, req?: FSReqWrap): string[] | any => {
                 const result: string[] = readDirSync(path);
-                if (req) req.oncomplete(result);
+                if (req) nextTick(() => req.oncomplete(result));
                 return result;
               },
               FSReqWrap: FSReqWrap
