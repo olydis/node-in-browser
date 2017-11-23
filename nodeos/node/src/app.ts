@@ -266,9 +266,9 @@
         get: (_, k) => {
           if (k in target)
             return target[k];
-          if (/^[_a-zA-Z]+$/.test(k as string)) {
+          if (typeof k === "string" && /^[_a-zA-Z]+$/.test(k)) {
             try {
-              return eval(k as string);
+              return eval(k);
             } catch (e) {
               if (e instanceof ReferenceError)
                 return undefined; // TODO: this is a workaround for `typeof ...` - would throw ReferenceError otherwise! :(
