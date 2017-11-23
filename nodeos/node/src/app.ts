@@ -424,6 +424,8 @@
       public oncomplete: Function;
     }
 
+    let cwd = "/mnt";
+
     const statValues = new Float64Array([
       1458881089, // device ID
       33207, // protection
@@ -783,7 +785,8 @@
             throw new Error(`missing binding '${name}'`);
         }
       },
-      cwd: () => "/",
+      chdir: (target: string) => { cwd = require("path").resolve(cwd, target) },
+      cwd: () => cwd,
       env: {
         // NODE_DEBUG: "repl,timer,stream,esm,module,net"
       },

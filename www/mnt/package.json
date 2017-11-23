@@ -1,5 +1,10 @@
 {
   "devDependencies": {
     "npm": "5.5.0"
+  },
+  "dependencies": {
+    "chalk": "^2.3.0",
+    "colors": "^1.1.2",
+    "cowsay": "^1.2.1"
   }
 }
