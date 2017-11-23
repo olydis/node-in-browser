@@ -173,5 +173,7 @@ function load() {
   (document.body as any).onresize = resize;
   setInterval(resize, 500);
 
-  new VirtualMachine({}, terminal).node(["node_modules/npm", "help"], false)
+  // new VirtualMachine({}, terminal).node([], false)
+  new VirtualMachine({}, terminal).node(["node_modules/npm", "install", "--no-save", "semver"], false)
+  // new VirtualMachine({}, terminal).node(["node_modules/npm", "help"], false)
 }
