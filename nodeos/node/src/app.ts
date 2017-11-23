@@ -635,7 +635,7 @@
                 return wrap<FileDescriptor>(() => {
                   if (flags === 0) return { s: readFileSync(path), isDir: false };
                   if (flags === 266) return { s: readFileSync(path), isDir: false };
-                  debugger;
+                  // debugger;
                   return errNotImpl();
                 }, req);
               },
