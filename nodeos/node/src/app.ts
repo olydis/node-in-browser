@@ -266,10 +266,15 @@
         get: (_, k) => {
           if (k in target)
             return target[k];
-          if (k === "self")
-            throw new ReferenceError(`${k} is not defined`);
-          if (k === "WScript")
-            return undefined; // TODO: this is a workaround for `typeof WScript` - would throw ReferenceError otherwise! :(
+          if (/^[_a-zA-Z]+$/.test(k as string)) {
+            try {
+              return eval(k as string);
+            } catch (e) {
+              if (e instanceof ReferenceError)
+                return undefined; // TODO: this is a workaround for `typeof ...` - would throw ReferenceError otherwise! :(
+              throw e;
+            }
+          }
           return eval(k as string);
         }
       });
