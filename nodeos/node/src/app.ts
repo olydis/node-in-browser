@@ -781,6 +781,7 @@
               getPromiseDetails: (x: Promise<any>) => x && x.toString(), // TODO
               getProxyDetails: (x: Promise<any>) => x && x.toString(), // TODO
               isAnyArrayBuffer: (x: any) => x instanceof ArrayBuffer,
+              isUint8Array: (x: any) => x instanceof Uint8Array,
               isDataView: (x: any) => x instanceof DataView,
               isExternal: (x: any) => false, // TODO: ???
               isMap: (x: any) => x instanceof Map,
