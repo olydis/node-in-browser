@@ -562,6 +562,14 @@
               },
             }; // TODO
           case "fs":
+            const wrap = <T>(f: () => T, req: FSReqWrap | undefined): T => {
+              let result: T | undefined = undefined;
+              let err: Error | undefined = undefined;
+              try { result = f(); } catch (e) { err = e; }
+              if (req) nextTick(() => req.oncomplete(err, result));
+              else if (err) throw err;
+              return result as any;
+            };
             const fstat = (fd: FileDescriptor | undefined, req?: FSReqWrap): void => {
               if (fd !== undefined) {
                 statValues[8] = fd.s.byteLength;
@@ -610,32 +618,28 @@
                 }
               },
               open: (path: string, flags: number, mode: number, req?: FSReqWrap): FileDescriptor => {
-                let result: FileDescriptor | undefined;
-                if (flags === 0) result = { s: readFileSync(path) };
-                if (flags === 266) result = { s: readFileSync(path) };
-                if (result !== undefined) {
-                  if (req) nextTick(() => req.oncomplete(undefined /*error, if one happened*/, result));
-                  return result;
-                }
-                debugger;
-                return errNotImpl();
+                return wrap<FileDescriptor>(() => {
+                  if (flags === 0) return { s: readFileSync(path) };
+                  if (flags === 266) return { s: readFileSync(path) };
+                  debugger;
+                  return errNotImpl();
+                }, req);
               },
               close: (fd: FileDescriptor, req?: FSReqWrap) => {
-                if (req) nextTick(() => req.oncomplete());
+                wrap<undefined>(() => undefined, req);
               },
-              read: (fd: FileDescriptor, buffer: any, offset: number, length: number, position: number, req?: FSReqWrap) => {
-                const s = fd.s;
-                const copy = Math.min(s.length, length);
-                for (let i = 0; i < copy; ++i)
-                  buffer[offset + i] = s[i];
-                fd.s = s.slice(copy);
-                if (req) nextTick(() => req.oncomplete(undefined /*error*/, copy));
-                return copy;
+              read: (fd: FileDescriptor, buffer: any, offset: number, length: number, position: number, req?: FSReqWrap): number => {
+                return wrap<number>(() => {
+                  const s = fd.s;
+                  const copy = Math.min(s.length, length);
+                  for (let i = 0; i < copy; ++i)
+                    buffer[offset + i] = s[i];
+                  fd.s = s.slice(copy);
+                  return copy;
+                }, req);
               },
               readdir: (path: string, encoding: any, req?: FSReqWrap): string[] | any => {
-                const result: string[] = readDirSync(path);
-                if (req) nextTick(() => req.oncomplete(result));
-                return result;
+                return wrap<string[]>(() => readDirSync(path), req);
               },
               FSReqWrap: FSReqWrap
             };// TODO
@@ -802,6 +806,7 @@
       release: {
         name: "node-box"
       },
+      umask: () => 0,
       version: "v8.0.0",
       versions: {
         http_parser: '2.7.0',
