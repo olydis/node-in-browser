@@ -9,7 +9,11 @@
   const selfAny: any = self;
   let env: Environment;
   const errAny = (e: any): never => { throw e; };
-  const err = (message: string): never => { throw new Error(message); };
+  const err = (message: string, code?: string): never => {
+    const e = new Error(message);
+    if (code) (e as any).code = code;
+    throw e;
+  };
   const errNotImpl = (): never => err("not implemented");
 
   // rescue required browser/worker-specific globals
@@ -44,8 +48,8 @@
     }
     return undefined;
   };
-  const throwENOENT = (absolutePath: string) => err(`ENOENT: no such file or directory, scandir '${absolutePath}'`);
-  const throwENOTDIR = (absolutePath: string) => err(`ENOTDIR: not a directory, scandir '${absolutePath}'`);
+  const throwENOENT = (absolutePath: string) => err(`ENOENT: no such file or directory, scandir '${absolutePath}'`, "ENOENT");
+  const throwENOTDIR = (absolutePath: string) => err(`ENOTDIR: not a directory, scandir '${absolutePath}'`, "ENOTDIR");
   const readFileSync = (absolutePath: string): ByteBuffer => {
     // - try vfs
     {
@@ -393,6 +397,10 @@
       public close(): void {
         _handleWrapQueue.splice(_handleWrapQueue.indexOf(this), 1);
       }
+
+      public unref(): void {
+        // TODO
+      }
     }
 
     class TCP {
@@ -428,7 +436,7 @@
 
     const statValues = new Float64Array([
       1458881089, // device ID
-      33207, // protection
+      33207, // mode | protection
       1, // # hard links
       0, // owner's user ID
       0, // 4 - owner's group ID
@@ -456,7 +464,7 @@
       }
     };
 
-    type FileDescriptor = { s: ByteBuffer };
+    type FileDescriptor = { s: ByteBuffer, isDir: boolean };
 
     const nextTick = (cb: () => void): void => (process as any).nextTick(cb);
     const process = {
@@ -572,6 +580,9 @@
             };
             const fstat = (fd: FileDescriptor | undefined, req?: FSReqWrap): void => {
               if (fd !== undefined) {
+                statValues[1] =
+                  (0xF000 & ((fd.isDir ? 0b0100 : 0b1000) << 12)) |
+                  (0x0FFF & 0x1B7 /*no clue*/)
                 statValues[8] = fd.s.byteLength;
               }
               // TODO
@@ -597,10 +608,9 @@
               fstat: fstat,
               lstat: (path: string, req?: FSReqWrap) => {
                 try {
-                  const buffer = readFileSync(path)
-                    || (readDirSync(path) && new Uint8Array(0))
-                    || err("TODO: correct error treatment");
-                  fstat({ s: buffer }, req);
+                  try { let buffer = readFileSync(path); if (buffer) return fstat({ s: buffer, isDir: false }, req); } catch{ }
+                  if (readDirSync(path)) return fstat({ s: new Uint8Array(0), isDir: true }, req);
+                  err("TODO: correct error treatment");
                 } catch {
                   fstat(undefined, req);
                   return;
@@ -608,10 +618,9 @@
               },
               stat: (path: string, req?: FSReqWrap) => {
                 try {
-                  const buffer = readFileSync(path)
-                    || (readDirSync(path) && new Uint8Array(0))
-                    || err("TODO: correct error treatment");
-                  fstat({ s: buffer }, req);
+                  try { let buffer = readFileSync(path); if (buffer) return fstat({ s: buffer, isDir: false }, req); } catch{ }
+                  if (readDirSync(path)) return fstat({ s: new Uint8Array(0), isDir: true }, req);
+                  err("TODO: correct error treatment");
                 } catch {
                   fstat(undefined, req);
                   return;
@@ -619,8 +628,8 @@
               },
               open: (path: string, flags: number, mode: number, req?: FSReqWrap): FileDescriptor => {
                 return wrap<FileDescriptor>(() => {
-                  if (flags === 0) return { s: readFileSync(path) };
-                  if (flags === 266) return { s: readFileSync(path) };
+                  if (flags === 0) return { s: readFileSync(path), isDir: false };
+                  if (flags === 266) return { s: readFileSync(path), isDir: false };
                   debugger;
                   return errNotImpl();
                 }, req);
@@ -640,6 +649,18 @@
               },
               readdir: (path: string, encoding: any, req?: FSReqWrap): string[] | any => {
                 return wrap<string[]>(() => readDirSync(path), req);
+              },
+              mkdir: (path: string, mode: number, req?: FSReqWrap): undefined => {
+                return wrap<undefined>(() => {
+                  try {
+                    readDirSync(path);
+                  }
+                  catch {
+                    env.fs[path] = null;
+                    return undefined;
+                  }
+                  return err("EEXISTS");
+                }, req);
               },
               FSReqWrap: FSReqWrap
             };// TODO
