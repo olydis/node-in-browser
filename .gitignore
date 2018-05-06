@@ -3,3 +3,4 @@ www/bin/*
 www/node/*
 www/mnt/node_modules/*
 test/browserRunner/node_modules/*
+npm-debug.log
