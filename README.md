@@ -13,7 +13,7 @@ npm run build
 npm start
 ```
 
-This will server the REPL at http://localhost:8000/index.html
+This will serve the REPL at http://localhost:8000/index.html
 
 ## More Info
 See my [blog post](https://blog.cloudboost.io/how-to-run-node-js-apps-in-the-browser-3f077f34f8a5) for more info!
