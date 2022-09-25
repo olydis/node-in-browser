@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "shx cp -r node_modules/xterm/lib www/xterm && shx pushd \"test/browserRunner\" && npm install && shx popd && git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && shx pushd \"www/node\" && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git && shx popd",
+    "postinstall": "shx rm -rf www/xterm && shx cp -r node_modules/xterm/lib www/xterm && cd \"test/browserRunner\" && npm install && cd ../.. && git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && cd \"www/node\" && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git && cd ../..",
     "start": "http-server www -p 8000 -i false -c-1\"",
     "test": "mocha test --timeout 60000",
     "build": "concurrently --passthrough-arguments \"cd nodeos/host && tsc {@}\" \"cd nodeos/node && tsc {@}\""
