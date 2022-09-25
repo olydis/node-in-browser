@@ -7,9 +7,10 @@ An experiment to bootstrap Node.js (version 8.0.0) in the browser in order to ru
 
 ## Contributor Quick Start
 
-```
+``` bash
 npm install
 npm run build
+# npm run build -- -- -w     # to build in watch mode
 npm start
 ```
 

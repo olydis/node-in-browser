@@ -7,9 +7,7 @@
     "postinstall": "shx cp -r node_modules/xterm/dist www/xterm && pushd \"test/browserRunner\" && npm install && popd && git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && pushd \"www/node\" && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git && popd",
     "start": "http-server www -p 8000 -i false -c-1\"",
     "test": "mocha test --timeout 60000",
-    "build-host": "cd nodeos/host && tsc -w",
-    "build-node": "cd nodeos/node && tsc -w",
-    "build": "concurrently \"npm:build-*\""
+    "build": "concurrently --passthrough-arguments \"cd nodeos/host && tsc {@}\" \"cd nodeos/node && tsc {@}\""
   },
   "author": "Johannes Bader",
   "license": "MIT",
