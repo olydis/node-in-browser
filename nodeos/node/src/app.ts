@@ -631,9 +631,14 @@
                   return;
                 }
               },
+              ftruncate: (fd: FileDescriptor, len: number, req?: FSReqWrap) => {
+                // TODO
+                wrap<undefined>(() => undefined, req);
+              },
               open: (path: string, flags: number, mode: number, req?: FSReqWrap): FileDescriptor => {
                 return wrap<FileDescriptor>(() => {
                   if (flags === 0) return { s: readFileSync(path), isDir: false };
+                  if (flags === 2) return { s: readFileSync(path), isDir: false };
                   if (flags === 266) return { s: readFileSync(path), isDir: false };
                   // debugger;
                   return errNotImpl();
@@ -819,7 +824,9 @@
       chdir: (target: string) => { cwd = require("path").resolve(cwd, target) },
       cwd: () => cwd,
       env: {
+        // TODO: make specifyable from outside, like vfs
         // NODE_DEBUG: "repl,timer,stream,esm,module,net"
+        NODE_REPL_HISTORY: ""
       },
       execPath: "/bin/node/app.js",
       moduleLoadList: [] as string[],
