@@ -578,7 +578,7 @@
             const wrap = <T>(f: () => T, req: FSReqWrap | undefined): T => {
               let result: T | undefined = undefined;
               let err: Error | undefined = undefined;
-              try { result = f(); } catch (e) { err = e; }
+              try { result = f(); } catch (e) { err = e as Error; }
               if (req) nextTick(() => req.oncomplete(err, result));
               else if (err) throw err;
               return result as any;

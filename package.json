@@ -16,7 +16,7 @@
     "concurrently": "^7.4.0",
     "http-server": "^14.1.1",
     "mocha": "^10.0.0",
-    "typescript": "^2.5.2"
+    "typescript": "^4.8.3"
   },
   "dependencies": {
     "shx": "^0.3.4",
