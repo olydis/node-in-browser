@@ -3,17 +3,22 @@
     "alwaysStrict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "amd",
+    "moduleResolution": "node",
     "noEmitOnError": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
+    "skipLibCheck": true,
     "outFile": "../../www/bin/index.js",
     "sourceMap": false,
     "strict": true,
-    "target": "es6",
+    "target": "ES2020",
+    "typeRoots": [
+      "xterm"
+    ],
     "lib": [
-      "es6",
-      "dom"
+      "ES2020",
+      "dom",
     ],
     "newLine": "LF"
   }
