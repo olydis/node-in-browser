@@ -312,12 +312,12 @@
         _handleWrapQueue.push(this);
 
         if (fd === 0) {
-          const onChar = (c: string) => {
-            //if (this.reading) {
-            const buffer = new TextEncoder().encode(c);
-            this.onread(buffer.length, buffer);
-            // }
-          };
+          // const onChar = (c: string) => {
+          //   //if (this.reading) {
+          //   const buffer = new TextEncoder().encode(c);
+          //   this.onread(buffer.length, buffer);
+          //   // }
+          // };
           selfAny.onmessage = (msg: MessageEvent) => {
             if (msg.data.type !== "stdin") return;
             // onChar(msg.data.ch);
@@ -326,8 +326,8 @@
         }
       }
 
-      public onread: (nread: number, buffer: Buffer) => void;
-      public reading: boolean;
+      // public onread: (nread: number, buffer: Buffer) => void;
+      // public reading: boolean;
 
       public getWindowSize(size: [number, number]): any /*error*/ {
         size[0] = 120; // cols
@@ -434,7 +434,7 @@
     }
 
     class FSReqWrap {
-      public oncomplete: Function;
+      public oncomplete: Function = null as any;
     }
 
     let cwd = "/mnt";
@@ -613,7 +613,7 @@
               fstat: fstat,
               lstat: (path: string, req?: FSReqWrap) => {
                 try {
-                  try { let buffer = readFileSync(path); if (buffer) return fstat({ s: buffer, isDir: false }, req); } catch{ }
+                  try { let buffer = readFileSync(path); if (buffer) return fstat({ s: buffer, isDir: false }, req); } catch { }
                   if (readDirSync(path)) return fstat({ s: new Uint8Array(0), isDir: true }, req);
                   err("TODO: correct error treatment");
                 } catch {
@@ -623,7 +623,7 @@
               },
               stat: (path: string, req?: FSReqWrap) => {
                 try {
-                  try { let buffer = readFileSync(path); if (buffer) return fstat({ s: buffer, isDir: false }, req); } catch{ }
+                  try { let buffer = readFileSync(path); if (buffer) return fstat({ s: buffer, isDir: false }, req); } catch { }
                   if (readDirSync(path)) return fstat({ s: new Uint8Array(0), isDir: true }, req);
                   err("TODO: correct error treatment");
                 } catch {

@@ -8,15 +8,16 @@
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
+    "skipLibCheck": true,
     "outFile": "../../www/bin/node/app.js",
     "sourceMap": false,
     "strict": true,
-    "target": "es5",
+    "target": "ES2017",
     "types": [
       "node"
     ],
     "lib": [
-      "es6",
+      "ES2017",
       "webworker"
     ],
     "newLine": "LF"
