@@ -12,12 +12,12 @@
     "outFile": "../../www/bin/index.js",
     "sourceMap": false,
     "strict": true,
-    "target": "ES2020",
+    "target": "ES2017",
     "typeRoots": [
       "xterm"
     ],
     "lib": [
-      "ES2020",
+      "ES2017",
       "dom",
     ],
     "newLine": "LF"
