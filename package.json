@@ -14,12 +14,12 @@
   "devDependencies": {
     "@types/node": "^8.0.28",
     "@types/xterm": "^2.0.3",
-    "http-server": "^0.10.0",
-    "mocha": "^4.0.1",
+    "http-server": "^14.1.1",
+    "mocha": "^10.0.0",
     "typescript": "^2.5.2"
   },
   "dependencies": {
-    "shx": "^0.2.2",
-    "xterm": "^2.9.2"
+    "shx": "^0.3.4",
+    "xterm": "^5.0.0"
   }
 }
