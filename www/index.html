@@ -21,22 +21,37 @@
       padding: 0;
       margin: 0;
       overflow: hidden;
+      background: black;
+      display: grid;
+      grid-template-rows: 3em auto;
+      color: lightgray;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+    }
+
+    a,
+    a:visited {
+      color: cornflowerblue;
+      text-decoration: none;
+    }
+
+    body>* {
+      border: 1em solid transparent;
     }
 
     #xterm {
       width: 100%;
       height: 100%;
-      background: black;
+      box-sizing: border-box;
     }
   </style>
 </head>
 
 <body ondrop="drop_handler(event)" ondragover="dragover_handler(event)" onload="load()">
-  <!-- <button onclick="testFixture()">test fixture</button>
-  <button onclick="testStack()">test stack</button> -->
-  <div id="status"></div>
-  <pre id="stdout"></pre>
-  <pre id="stderr"></pre>
+  <div>Node.js 8.0.0 bootstrapped in your browser. Experimental. Have fun.
+    <a href="https://blog.cloudboost.io/how-to-run-node-js-apps-in-the-browser-3f077f34f8a5">Blog post</a>.
+    <a href="https://github.com/olydis/node-in-browser">Contribute</a>.
+  </div>
   <div id="xterm"></div>
 </body>
 

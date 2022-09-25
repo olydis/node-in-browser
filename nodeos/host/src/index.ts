@@ -18,11 +18,9 @@ class VirtualMachine {
     switch (func) {
       case "stdout":
         this.terminal.write(arg);
-        eval("document").getElementById("stdout").textContent += arg;
         break;
       case "stderr":
         this.terminal.write(arg);
-        eval("document").getElementById("stderr").textContent += arg;
         break;
       case "error":
         this.terminal.write("[Runtime Error]\n");
@@ -32,7 +30,6 @@ class VirtualMachine {
         break;
       // case "__trace.fs":
       // case "__trace.require":
-      //   eval("document").getElementById("console").textContent += `[${func}] ${arg}\n`;
       //   break;
       // case "__trace.fs":
       //   console.log(JSON.stringify(arg, null, 2));
@@ -51,8 +48,6 @@ class VirtualMachine {
    * Dummy entry point for "node" binary. Long term, this should be hooked into the FS somehow and resolved via $PATH etc.
    */
   public node(args: string[], keepAlive: boolean = false): void {
-    eval("document").getElementById("stdout").textContent = "";
-    eval("document").getElementById("stderr").textContent = "";
     this.terminal.clear();
     const vm = this;
     const worker = new Worker("/bin/node/app.js");
@@ -116,8 +111,7 @@ async function drop_handler(ev: DragEvent) {
             reader.onloadend = () => {
               fs[name] = new Uint8Array(reader.result);
               todo.delete(name);
-              // console.log(name);
-              (document.getElementById("status") as any).textContent = name;
+              console.log(name);
               res();
             };
             reader.onerror = () => console.error(name);
@@ -146,7 +140,6 @@ async function drop_handler(ev: DragEvent) {
       continue;
     await traverse(item.webkitGetAsEntry(), "/");
   }
-  (document.getElementById("status") as any).textContent = "";
 
   console.log("done loading");
   const firstPath = Object.keys(fs)[0];
