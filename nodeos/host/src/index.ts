@@ -82,11 +82,12 @@ class VirtualMachine {
       }
     });
     this.terminal.onKey(({ key, domEvent }) => {
+      // console.log(key, domEvent.key, domEvent.code);
       worker.postMessage({
         type: "stdin",
-        ch: domEvent.key,
+        ch: key,
         key: {
-          name: domEvent.code.toLowerCase().replace(/^arrow/, ""),
+          name: domEvent.key.toLowerCase().replace(/^arrow/, ""),
           ctrl: domEvent.ctrlKey,
           shift: domEvent.shiftKey,
           meta: domEvent.metaKey,
