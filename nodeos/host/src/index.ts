@@ -3,7 +3,11 @@
 /// <reference path="../../../node_modules/xterm/typings/xterm.d.ts" />
 /// <reference path="./xterm.d.ts" />
 
-const terminal = new Terminal({ cursorBlink: true, cols: 120, rows: 30, convertEol: true, });
+const terminal = new Terminal({
+  cursorBlink: true,
+  cols: 120, rows: 30,
+  convertEol: true,
+});
 
 /**
  * Represents an execution environment, i.e. virtual OS with architecture, FS, etc.
@@ -18,9 +22,11 @@ class VirtualMachine {
     switch (func) {
       case "stdout":
         this.terminal.write(arg);
+        document.getElementById("stdout")!.textContent += arg;
         break;
       case "stderr":
         this.terminal.write(arg);
+        document.getElementById("stderr")!.textContent += arg;
         break;
       case "error":
         this.terminal.write("[Runtime Error]\n");
@@ -48,6 +54,8 @@ class VirtualMachine {
    * Dummy entry point for "node" binary. Long term, this should be hooked into the FS somehow and resolved via $PATH etc.
    */
   public node(args: string[], keepAlive: boolean = false): void {
+    document.getElementById("stdout")!.textContent = "";
+    document.getElementById("stderr")!.textContent = "";
     this.terminal.clear();
     const vm = this;
     const worker = new Worker("/bin/node/app.js");
@@ -156,8 +164,8 @@ function load() {
   terminal.open(terminalDiv);
   const term = terminal as any;
   const resize = () => {
-    const cw = term.charMeasure.width;
-    const ch = term.charMeasure.height;
+    const cw = term._core._renderService.dimensions.actualCellWidth;
+    const ch = term._core._renderService.dimensions.actualCellHeight;
     if (cw && ch)
       terminal.resize(terminalDiv.clientWidth / cw | 0, terminalDiv.clientHeight / ch | 0);
     // TODO: need to communicate that to process!

@@ -12,7 +12,7 @@
     "outFile": "../../www/bin/node/app.js",
     "sourceMap": false,
     "strict": true,
-    "target": "ES2017",
+    "target": "ES5", // max. for which with-statement in eval works
     "types": [
       "node"
     ],
