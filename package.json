@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "shx rm -rf www/xterm && shx cp -r node_modules/xterm/lib www/xterm && cd \"test/browserRunner\" && npm install && cd ../.. && git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && cd \"www/node\" && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git && cd ../..",
+    "postinstall": "shx rm -rf www/xterm && shx cp -r node_modules/xterm/lib www/xterm && shx cp node_modules/xterm/css/xterm.css www/xterm && cd \"test/browserRunner\" && npm install && cd ../.. && git config --global core.longpaths true && shx rm -rf www/node && git clone --depth 1 https://github.com/olydis/node www/node && cd \"www/node\" && git filter-branch --prune-empty --subdirectory-filter lib HEAD && shx rm -rf .git && cd ../..",
     "start": "http-server www -p 8000 -i false -c-1\"",
     "test": "mocha test --timeout 60000",
     "build": "concurrently --passthrough-arguments \"cd nodeos/host && tsc {@}\" \"cd nodeos/node && tsc {@}\""
@@ -16,10 +16,8 @@
     "concurrently": "^7.4.0",
     "http-server": "^14.1.1",
     "mocha": "^10.0.0",
-    "typescript": "^4.8.3"
-  },
-  "dependencies": {
     "shx": "^0.3.4",
+    "typescript": "^4.8.3",
     "xterm": "^5.0.0"
   }
 }
